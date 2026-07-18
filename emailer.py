@@ -9,6 +9,36 @@ from email.mime.text import MIMEText
 import config
 
 
+def send_test_email():
+    """Send a simple 'system is working' email to the configured recipients.
+    Returns 'sent' | 'disabled' | 'not-configured'; raises on SMTP failure."""
+    if not config.EMAIL_ENABLED:
+        return "disabled"
+    if not (config.SMTP_SENDER and config.SMTP_APP_PASSWORD and config.EMAIL_RECIPIENTS):
+        return "not-configured"
+
+    text = ("Trishoolin Ops — test email.\n\n"
+            "The system is working. If you're reading this, email delivery is set up "
+            "correctly.\n")
+    html = ("""<div style="font-family:Arial,Helvetica,sans-serif;color:#222">
+      <h2 style="margin:0 0 6px">Trishoolin Ops — the system is working ✅</h2>
+      <p style="color:#555;margin:0">This is a test email. If you're reading it,
+         email delivery is set up correctly.</p>
+    </div>""")
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = "Trishoolin Ops — test email (system is working)"
+    msg["From"] = config.SMTP_SENDER
+    msg["To"] = ", ".join(config.EMAIL_RECIPIENTS)
+    msg.attach(MIMEText(text, "plain"))
+    msg.attach(MIMEText(html, "html"))
+
+    with smtplib.SMTP_SSL(config.SMTP_HOST, config.SMTP_PORT) as server:
+        server.login(config.SMTP_SENDER, config.SMTP_APP_PASSWORD)
+        server.sendmail(config.SMTP_SENDER, config.EMAIL_RECIPIENTS, msg.as_string())
+    return "sent"
+
+
 def send_amazon_file(awb, project, file_text, filename, summary):
     """Email the Amazon shipment-confirmation file (tab-separated) as an attachment.
     Returns 'sent' | 'disabled' | 'not-configured'; raises on SMTP failure."""

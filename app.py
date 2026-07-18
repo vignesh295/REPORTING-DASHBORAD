@@ -421,6 +421,26 @@ def settings_config():
     return redirect(url_for("settings"))
 
 
+@app.route("/settings/email/test", methods=["POST"])
+@auth.role_required("admin")
+def settings_email_test():
+    import emailer
+    try:
+        status = emailer.send_test_email()
+    except Exception as e:  # noqa: BLE001
+        traceback.print_exc()
+        status = f"ERROR: {e}"
+    if status == "sent":
+        flash(f"Test email sent to {', '.join(config.EMAIL_RECIPIENTS)}.", "ok")
+    elif status == "disabled":
+        flash("Email is off — tick 'Send the count email', Save, then try again.", "error")
+    elif status == "not-configured":
+        flash("Set the Gmail sender, app password and recipients first, then Save.", "error")
+    else:
+        flash(f"Test email failed: {status}", "error")
+    return redirect(url_for("settings"))
+
+
 @app.route("/settings/awb/token", methods=["POST"])
 @auth.role_required("admin")
 def settings_awb_token():

@@ -146,7 +146,10 @@
           <span class="hint">One address per line (or comma-separated).</span>
         </div>
       </div>
-      <div class="card-foot"><button class="btn btn-primary" type="submit">Save settings</button></div>
+      <div class="card-foot" style="gap:10px;">
+        <button class="btn btn-ghost" type="submit" formaction="{{ url_for('settings_email_test') }}" formnovalidate>Send test email</button>
+        <button class="btn btn-primary" type="submit">Save settings</button>
+      </div>
     </div>
   </form>
 
