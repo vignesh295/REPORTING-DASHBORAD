@@ -85,6 +85,13 @@ AWB_LATE_DAYS = int(os.getenv("AWB_LATE_DAYS", "3"))
 # API is disabled (returns 503) until a token is set on the Settings page.
 AWB_API_TOKEN = ""   # web-editable; set by reload()
 
+# ---------------------------------------------------------------------------
+# Shipment workflow (Drive folder of shipment manifests + the AWB tracking sheet)
+# ---------------------------------------------------------------------------
+SHIPMENT_STORE_FILE = os.getenv("SHIPMENT_STORE_FILE", "shipment.json")
+DRIVE_FOLDER_ID = ""   # web-editable; the shared folder the manifests land in
+AWB_SHEET_ID = ""      # web-editable; the "ALL NEW COMBINED AWB REPORT" sheet
+
 
 # ---------------------------------------------------------------------------
 # Web-editable config (settings.json overlays .env). Set by reload().
@@ -101,7 +108,7 @@ EMAIL_RECIPIENTS = []
 EDITABLE_KEYS = (
     "RED_SPREADSHEET_ID", "YELLOW_SPREADSHEET_ID", "LANES",
     "EMAIL_ENABLED", "SMTP_SENDER", "SMTP_APP_PASSWORD", "EMAIL_RECIPIENTS",
-    "AWB_API_TOKEN",
+    "AWB_API_TOKEN", "DRIVE_FOLDER_ID", "AWB_SHEET_ID",
 )
 
 
@@ -109,9 +116,11 @@ def reload():
     """(Re)compute the web-editable values from settings.json over .env."""
     global RED_SPREADSHEET_ID, YELLOW_SPREADSHEET_ID, LANES
     global EMAIL_ENABLED, SMTP_SENDER, SMTP_APP_PASSWORD, EMAIL_RECIPIENTS
-    global AWB_API_TOKEN
+    global AWB_API_TOKEN, DRIVE_FOLDER_ID, AWB_SHEET_ID
     s = _load_settings()
     AWB_API_TOKEN = s["AWB_API_TOKEN"] if "AWB_API_TOKEN" in s else os.getenv("AWB_API_TOKEN", "")
+    DRIVE_FOLDER_ID = s["DRIVE_FOLDER_ID"] if "DRIVE_FOLDER_ID" in s else os.getenv("DRIVE_FOLDER_ID", "")
+    AWB_SHEET_ID = s["AWB_SHEET_ID"] if "AWB_SHEET_ID" in s else os.getenv("AWB_SHEET_ID", "")
 
     RED_SPREADSHEET_ID = s["RED_SPREADSHEET_ID"] if "RED_SPREADSHEET_ID" in s \
         else os.getenv("RED_SPREADSHEET_ID", "")
@@ -150,6 +159,8 @@ def current_settings():
         "SMTP_APP_PASSWORD": SMTP_APP_PASSWORD,
         "EMAIL_RECIPIENTS": EMAIL_RECIPIENTS,
         "AWB_API_TOKEN": AWB_API_TOKEN,
+        "DRIVE_FOLDER_ID": DRIVE_FOLDER_ID,
+        "AWB_SHEET_ID": AWB_SHEET_ID,
     }
 
 

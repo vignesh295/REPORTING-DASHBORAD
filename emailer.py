@@ -1,11 +1,46 @@
 """
 Sends the per-lane order-count report over Gmail SMTP (SSL) using an App Password.
+Also emails the generated Amazon shipment-confirmation file as an attachment.
 """
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
 import config
+
+
+def send_amazon_file(awb, project, file_text, filename, summary):
+    """Email the Amazon shipment-confirmation file (tab-separated) as an attachment.
+    Returns 'sent' | 'disabled' | 'not-configured'; raises on SMTP failure."""
+    if not config.EMAIL_ENABLED:
+        return "disabled"
+    if not (config.SMTP_SENDER and config.SMTP_APP_PASSWORD and config.EMAIL_RECIPIENTS):
+        return "not-configured"
+
+    cancelled = summary.get("cancelled_orders", [])
+    body = (
+        f"Amazon shipment-confirmation file for AWB {awb} ({project}).\n\n"
+        f"Confirmed orders: {summary.get('confirmed_orders', 0)}\n"
+        f"Cancelled (not in the unshipped report): {len(cancelled)}\n"
+    )
+    if cancelled:
+        body += "Cancelled order IDs: " + ", ".join(cancelled) + "\n"
+    body += "\nUpload the attached file to Amazon (Shipping Confirmation)."
+
+    msg = MIMEMultipart()
+    msg["Subject"] = (f"Amazon shipment file — {project or 'shipment'} — AWB {awb} "
+                      f"({summary.get('confirmed_orders', 0)} orders)")
+    msg["From"] = config.SMTP_SENDER
+    msg["To"] = ", ".join(config.EMAIL_RECIPIENTS)
+    msg.attach(MIMEText(body, "plain"))
+    attachment = MIMEText(file_text, "plain", "utf-8")
+    attachment.add_header("Content-Disposition", "attachment", filename=filename)
+    msg.attach(attachment)
+
+    with smtplib.SMTP_SSL(config.SMTP_HOST, config.SMTP_PORT) as server:
+        server.login(config.SMTP_SENDER, config.SMTP_APP_PASSWORD)
+        server.sendmail(config.SMTP_SENDER, config.EMAIL_RECIPIENTS, msg.as_string())
+    return "sent"
 
 
 def _table(red_counts, yellow_counts):

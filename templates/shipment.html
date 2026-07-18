@@ -4,16 +4,36 @@
 
 {% block page_css %}
 <style>
-  .panel{background:var(--panel); border:1px solid var(--line); border-radius:14px; box-shadow:var(--shadow); overflow:hidden; margin-bottom:18px;}
-  .panel .ph{padding:15px 20px; border-bottom:1px solid var(--line); background:var(--panel-2); font-size:13px; font-weight:700; display:flex; align-items:center; gap:9px;}
-  .steps{padding:8px 20px 16px;}
-  .step{display:flex; gap:14px; padding:14px 0; border-bottom:1px solid var(--line);}
-  .step:last-child{border-bottom:0;}
-  .snum{flex:0 0 auto; width:26px; height:26px; border-radius:8px; display:grid; place-items:center; font-family:var(--mono); font-size:12px; font-weight:700; color:var(--brand); background:var(--brand-soft); border:1px solid var(--line);}
-  .stext{font-size:13.5px; color:var(--ink-2); line-height:1.55;}
-  .stext b{color:var(--ink);}
-  .banner{display:flex; gap:11px; align-items:flex-start; padding:14px 16px; border:1px solid var(--amber-line); border-radius:12px; background:var(--amber-soft); font-size:13px; color:var(--ink-2); margin-bottom:18px;}
-  .banner svg{color:var(--amber); flex:0 0 auto; margin-top:1px;}
+  .card{background:var(--panel); border:1px solid var(--line); border-radius:14px; box-shadow:var(--shadow); margin-bottom:18px; overflow:hidden;}
+  .card-head{padding:14px 18px; border-bottom:1px solid var(--line); background:var(--panel-2); display:flex; align-items:center; gap:10px;}
+  .card-head h2{font-size:14px; font-weight:700; margin:0;}
+  .card-head .pill{margin-left:auto; font-size:11px; font-weight:700; padding:3px 9px; border-radius:999px; background:var(--panel); border:1px solid var(--line); color:var(--muted);}
+  .card-body{padding:16px 18px;}
+  .uform{display:flex; gap:10px; align-items:end; flex-wrap:wrap;}
+  .uform .fld{display:flex; flex-direction:column; gap:5px;}
+  .uform label{font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--muted);}
+  select, input[type=file]{font-family:var(--sans); font-size:13.5px; color:var(--ink); background:var(--panel-2); border:1px solid var(--line-2); border-radius:9px; padding:9px 11px;}
+  .uns-list{display:flex; gap:10px; flex-wrap:wrap; margin-top:12px;}
+  .uns{font-size:12.5px; border:1px solid var(--line); border-radius:10px; padding:8px 12px; background:var(--panel-2);}
+  .uns b{color:var(--ink);}
+  .uns .none{color:var(--faint);}
+
+  table{border-collapse:collapse; width:100%; font-size:13px;}
+  thead th{text-align:left; padding:10px 14px; font-size:10px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); background:var(--panel-2); border-bottom:1px solid var(--line); white-space:nowrap;}
+  thead th.n{text-align:right;}
+  tbody td{padding:11px 14px; border-bottom:1px solid var(--line); white-space:nowrap; vertical-align:middle;}
+  tbody tr:last-child td{border-bottom:0;}
+  td.n{text-align:right; font-family:var(--mono);}
+  .awb{font-family:var(--mono); font-weight:700;}
+  .muted{color:var(--muted);}
+  .chip{font-size:10.5px; font-weight:700; padding:2px 8px; border-radius:999px;}
+  .chip.ok{color:var(--ok); background:var(--ok-soft); border:1px solid var(--ok-line);}
+  .chip.warn{color:var(--amber); background:var(--amber-soft); border:1px solid var(--amber-line);}
+  .acts{display:flex; gap:7px; justify-content:flex-end; align-items:center;}
+  .btn-sm{padding:7px 12px; font-size:12.5px; border-radius:8px;}
+  .empty{display:flex; flex-direction:column; align-items:center; gap:8px; padding:34px 20px; color:var(--muted); font-size:13.5px; text-align:center;}
+  .empty svg{color:var(--faint);}
+  .hint{font-size:12px; color:var(--muted); margin-top:8px;}
 </style>
 {% endblock %}
 
@@ -27,22 +47,82 @@
 
 <div class="page-head">
   <h1>Shipment</h1>
-  <p>AWB shipment tracking → Amazon shipment-update files. One AWB = one shipped batch.</p>
+  <p>Manifests arrive from the Drive folder; upload the unshipped report, then generate the Amazon file per AWB.</p>
 </div>
 
-<div class="banner">
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><path d="M12 17h.01"/><circle cx="12" cy="12" r="9"/></svg>
-  <span>This workflow is being set up. The steps below are the agreed flow — we'll wire each one up (and you'll share the Amazon file template).</span>
-</div>
-
-<div class="panel">
-  <div class="ph">Workflow</div>
-  <div class="steps">
-    <div class="step"><span class="snum">1</span><div class="stext"><b>Collect shipment emails.</b> The Apps Script gathers Excel attachments from the <span class="mono">SHIPMENT UPDATES</span> label into Drive; the system saves each AWB's details.</div></div>
-    <div class="step"><span class="snum">2</span><div class="stext"><b>Upload the unshipped-orders report</b> (txt). Any order <b>not</b> in it counts as <b>cancelled</b>.</div></div>
-    <div class="step"><span class="snum">3</span><div class="stext"><b>Track every AWB</b> against the status sheet — delivered or not, plus the last ship date. An Apps Script pings the system the moment an AWB is delivered.</div></div>
-    <div class="step"><span class="snum">4</span><div class="stext"><b>On delivery</b>, the system prompts you to refresh the unshipped report, then <b>generates the Amazon shipment-update file</b> for that AWB's order IDs (minus cancelled) and emails it to you.</div></div>
-    <div class="step"><span class="snum">5</span><div class="stext"><b>Dashboard sheet</b> keeps the running data for the project.</div></div>
+<!-- Unshipped report -->
+<div class="card">
+  <div class="card-head"><h2>Unshipped-orders report</h2></div>
+  <div class="card-body">
+    <form class="uform" method="post" action="{{ url_for('shipment_unshipped') }}" enctype="multipart/form-data">
+      <div class="fld">
+        <label>Project</label>
+        <select name="project" required>
+          <option value="" disabled selected>Choose…</option>
+          <option value="UAE">UAE</option>
+          <option value="AUS">AUS</option>
+        </select>
+      </div>
+      <div class="fld">
+        <label>Report file (.txt / .csv / .xlsx)</label>
+        <input type="file" name="file" accept=".txt,.csv,.xlsx,.xls" required>
+      </div>
+      <button class="btn btn-primary btn-sm" type="submit">Upload</button>
+    </form>
+    <div class="uns-list">
+      {% for proj in ['UAE','AUS'] %}
+      <span class="uns">
+        <b>{{ proj }}</b> —
+        {% set u = unshipped.get(proj) %}
+        {% if u %}{{ u.count }} orders <span class="muted">· {{ u.uploaded.replace('T',' ') }}</span>{% else %}<span class="none">not uploaded</span>{% endif %}
+      </span>
+      {% endfor %}
+    </div>
+    <div class="hint">Any AWB order not in this report is treated as <b>cancelled</b> and left out of the Amazon file.</div>
   </div>
+</div>
+
+<!-- Manifests -->
+<div class="card">
+  <div class="card-head"><h2>AWB manifests</h2><span class="pill">{{ manifests|length }}</span></div>
+  {% if manifests %}
+  <div style="overflow-x:auto;">
+    <table>
+      <thead>
+        <tr><th>AWB</th><th>Project</th><th class="n">Orders</th><th>Received</th><th>Unshipped</th><th style="text-align:right">Actions</th></tr>
+      </thead>
+      <tbody>
+        {% for m in manifests %}
+        <tr>
+          <td class="awb">{{ m.awb or m.key }}</td>
+          <td>{{ m.project or '—' }}{% if m.dest %} <span class="muted">({{ m.dest }})</span>{% endif %}</td>
+          <td class="n">{{ m.orders }}</td>
+          <td class="muted">{{ m.received.replace('T',' ') if m.received }}</td>
+          <td>{% if m.unshipped_ready %}<span class="chip ok">ready</span>{% else %}<span class="chip warn">upload {{ m.dest or '?' }}</span>{% endif %}</td>
+          <td>
+            <div class="acts">
+              {% if m.generated %}
+              <span class="muted" style="font-size:12px">{{ m.generated.summary.confirmed_orders }} ok / {{ m.generated.summary.cancelled_orders|length }} cxl</span>
+              <a class="btn btn-ghost btn-sm" href="{{ url_for('shipment_download', key=m.key) }}">Download</a>
+              {% endif %}
+              <form method="post" action="{{ url_for('shipment_generate', key=m.key) }}">
+                <button class="btn btn-primary btn-sm" type="submit" {{ 'disabled' if not m.unshipped_ready }}>
+                  {{ 'Regenerate' if m.generated else 'Generate' }}
+                </button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty">
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="M3.27 6.96 12 12.01l8.73-5.05"/><path d="M12 22.08V12"/></svg>
+    No manifests yet. They arrive automatically when a shipment file lands in the Drive folder
+    (the mail script saves it → the app pulls it).
+  </div>
+  {% endif %}
 </div>
 {% endblock %}

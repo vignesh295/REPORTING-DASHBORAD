@@ -28,6 +28,7 @@ import auth
 import awb_store
 import config
 import parser as xparser
+import shipment_store
 import store
 
 app = Flask(__name__)
@@ -103,10 +104,144 @@ def home():
     return render_template("home.html")
 
 
+def _dest(project):
+    """Destination (UAE / AUS) from a project/lane string."""
+    p = (project or "").upper()
+    if "UAE" in p:
+        return "UAE"
+    if "AUS" in p:
+        return "AUS"
+    return ""
+
+
 @app.route("/shipment")
 @auth.role_required("admin")
 def shipment():
-    return render_template("shipment.html")
+    rows = []
+    for key, m in shipment_store.manifests().items():
+        dest = _dest(m.get("project", ""))
+        rows.append({
+            "key": key, "awb": m.get("awb", ""), "project": m.get("project", ""),
+            "dest": dest, "orders": len(m.get("rows", [])), "received": m.get("received"),
+            "unshipped_ready": bool(shipment_store.get_unshipped(dest)),
+            "generated": shipment_store.get_generated(key),
+        })
+    rows.sort(key=lambda r: r["received"] or "", reverse=True)
+    return render_template("shipment.html", manifests=rows,
+                           unshipped=shipment_store.unshipped_projects(),
+                           status=_status_banner())
+
+
+@app.route("/shipment/unshipped", methods=["POST"])
+@auth.role_required("admin")
+def shipment_unshipped():
+    project = request.form.get("project", "").strip().upper()
+    upload = request.files.get("file")
+    if project not in ("UAE", "AUS"):
+        flash("Pick a project (UAE or AUS).", "error")
+        return redirect(url_for("shipment"))
+    if not upload or not upload.filename:
+        flash("Choose the unshipped-orders report file.", "error")
+        return redirect(url_for("shipment"))
+    ext = os.path.splitext(upload.filename)[1].lower() or ".txt"
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=ext)
+    try:
+        upload.save(tmp.name)
+        tmp.close()
+        import shipment_core
+        _headers, rows = shipment_core.read_table(tmp.name)
+        ids = shipment_core.unshipped_order_ids(rows)
+        shipment_store.set_unshipped(project, ids, upload.filename)
+        flash(f"Unshipped report for {project}: {len(ids)} orders on record.", "ok")
+    except Exception as e:  # noqa: BLE001
+        traceback.print_exc()
+        flash(f"Couldn't read the report: {e}", "error")
+    finally:
+        try:
+            os.unlink(tmp.name)
+        except OSError:
+            pass
+    return redirect(url_for("shipment"))
+
+
+@app.route("/shipment/generate/<path:key>", methods=["POST"])
+@auth.role_required("admin")
+def shipment_generate(key):
+    import emailer
+    import shipment_core
+    man = shipment_store.get_manifest(key)
+    if not man:
+        flash("No manifest for that AWB.", "error")
+        return redirect(url_for("shipment"))
+    dest = _dest(man.get("project", ""))
+    uns = shipment_store.get_unshipped(dest)
+    if not uns:
+        flash(f"Upload the {dest or 'destination'} unshipped report first.", "error")
+        return redirect(url_for("shipment"))
+
+    text, summary = shipment_core.build_confirmation(man["rows"], set(uns["order_ids"]))
+    awb = man.get("awb", "") or key
+    filename = ("amazon-shipment-"
+                + (man.get("project") or dest or "ship").replace(" ", "_")
+                + f"-{awb}.txt")
+    shipment_store.save_generated(key, text, summary, filename)
+
+    try:
+        email_status = emailer.send_amazon_file(awb, man.get("project", ""), text, filename, summary)
+    except Exception as e:  # noqa: BLE001
+        traceback.print_exc()
+        email_status = f"ERROR: {e}"
+    flash(f"Generated: {summary['confirmed_orders']} confirmed, "
+          f"{len(summary['cancelled_orders'])} cancelled. Email: {email_status}.", "ok")
+    return redirect(url_for("shipment"))
+
+
+@app.route("/shipment/download/<path:key>")
+@auth.role_required("admin")
+def shipment_download(key):
+    from flask import Response
+    gen = shipment_store.get_generated(key)
+    if not gen:
+        flash("Nothing generated for that AWB yet.", "error")
+        return redirect(url_for("shipment"))
+    return Response(gen["text"], mimetype="text/plain",
+                    headers={"Content-Disposition": f'attachment; filename="{gen["filename"]}"'})
+
+
+@app.route("/api/shipment/notify", methods=["POST"])
+def api_shipment_notify():
+    """Drive-folder Apps Script pings this with a new file's id; the app pulls
+    and parses the shipment manifest."""
+    err = _api_token_error()
+    if err:
+        return jsonify(ok=False, error=err[0]), err[1]
+    payload = request.get_json(silent=True) or {}
+    file_id = str(payload.get("fileId", "")).strip()
+    if not file_id:
+        return jsonify(ok=False, error="fileId is required"), 400
+    if shipment_store.already_ingested(file_id):
+        return jsonify(ok=True, skipped="already ingested")
+    try:
+        import drive
+        import shipment_core
+        data, ext = drive.download(file_id, payload.get("mimeType"), payload.get("name", ""))
+        raw = data if isinstance(data, bytes) else str(data).encode("utf-8")
+        tmp = tempfile.NamedTemporaryFile(delete=False, suffix=ext or ".xlsx")
+        tmp.write(raw)
+        tmp.close()
+        try:
+            _headers, rows = shipment_core.read_table(tmp.name)
+        finally:
+            try:
+                os.unlink(tmp.name)
+            except OSError:
+                pass
+        key, n = shipment_store.store_manifest(payload.get("awb", ""), payload.get("project", ""),
+                                               rows, file_id, payload.get("name", ""))
+        return jsonify(ok=True, awb=payload.get("awb", ""), key=key, orders=n)
+    except Exception as e:  # noqa: BLE001
+        traceback.print_exc()
+        return jsonify(ok=False, error=str(e)), 500
 
 
 @app.route("/buy-ship-left")

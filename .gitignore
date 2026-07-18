@@ -8,6 +8,7 @@ users.json
 state.json
 settings.json
 awbs.json
+shipment.json
 
 # Python
 __pycache__/
