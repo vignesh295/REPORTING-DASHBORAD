@@ -31,6 +31,9 @@ def _env_bool(name, default):
 
 
 def _load_settings():
+    import db
+    if db.enabled():
+        return db.kv_get("settings", {}) or {}
     if not os.path.exists(SETTINGS_FILE):
         return {}
     try:
@@ -138,13 +141,17 @@ def reload():
 
 
 def save_settings(updates):
-    """Merge `updates` (only EDITABLE_KEYS) into settings.json and reload()."""
+    """Merge `updates` (only EDITABLE_KEYS) into settings and reload()."""
+    import db
     s = _load_settings()
     for k, v in updates.items():
         if k in EDITABLE_KEYS:
             s[k] = v
-    with open(SETTINGS_FILE, "w") as f:
-        json.dump(s, f, indent=2, ensure_ascii=False)
+    if db.enabled():
+        db.kv_set("settings", s)
+    else:
+        with open(SETTINGS_FILE, "w") as f:
+            json.dump(s, f, indent=2, ensure_ascii=False)
     reload()
 
 

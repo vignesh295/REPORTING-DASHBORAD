@@ -16,6 +16,9 @@ import json
 import os
 
 import config
+import db
+
+_KEY = "awbs"
 
 # ---- column aliases (Apps Script may send any of these) -------------------
 _ALIASES = {
@@ -64,6 +67,10 @@ def _parse_date(s):
 
 
 def _load():
+    if db.enabled():
+        data = db.kv_get(_KEY, {"awbs": {}}) or {"awbs": {}}
+        data.setdefault("awbs", {})
+        return data
     if not os.path.exists(config.AWB_STORE_FILE):
         return {"awbs": {}}
     try:
@@ -76,6 +83,9 @@ def _load():
 
 
 def _save(data):
+    if db.enabled():
+        db.kv_set(_KEY, data)
+        return
     with open(config.AWB_STORE_FILE, "w") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
 

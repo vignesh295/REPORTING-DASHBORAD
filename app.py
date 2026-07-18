@@ -58,11 +58,11 @@ def _seed_admin_from_env():
     """On a fresh/ephemeral host (e.g. Render), create the admin login from
     ADMIN_USER / ADMIN_PASSWORD env vars if no users exist yet."""
     u, p = os.environ.get("ADMIN_USER"), os.environ.get("ADMIN_PASSWORD")
-    if u and p and not auth.list_users():
-        try:
+    try:
+        if u and p and not auth.list_users():
             auth.set_user(u, p, "admin")
-        except ValueError:
-            pass
+    except Exception:  # noqa: BLE001 - never block startup on a seed hiccup
+        traceback.print_exc()
 
 
 _seed_admin_from_env()

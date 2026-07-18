@@ -17,11 +17,15 @@ from flask import flash, redirect, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 
 import config
+import db
 
 ROLES = ("ops", "admin")
+_KEY = "users"
 
 
 def _load_users():
+    if db.enabled():
+        return db.kv_get(_KEY, {}) or {}
     if not os.path.exists(config.USERS_FILE):
         return {}
     try:
@@ -32,6 +36,9 @@ def _load_users():
 
 
 def _save_users(users):
+    if db.enabled():
+        db.kv_set(_KEY, users)
+        return
     with open(config.USERS_FILE, "w") as f:
         json.dump(users, f, indent=2)
 

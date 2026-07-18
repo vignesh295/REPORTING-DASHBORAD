@@ -12,20 +12,17 @@ import json
 import os
 
 import config
+import db
+
+_KEY = "shipment"
+_DEFAULT = {"manifests": {}, "unshipped": {}, "files": [], "generated": {}}
 
 
 def _now():
     return datetime.datetime.now().isoformat(timespec="seconds")
 
 
-def _load():
-    if not os.path.exists(config.SHIPMENT_STORE_FILE):
-        return {"manifests": {}, "unshipped": {}, "files": [], "generated": {}}
-    try:
-        with open(config.SHIPMENT_STORE_FILE) as f:
-            data = json.load(f)
-    except (OSError, json.JSONDecodeError):
-        data = {}
+def _defaults(data):
     data.setdefault("manifests", {})
     data.setdefault("unshipped", {})
     data.setdefault("files", [])
@@ -33,7 +30,23 @@ def _load():
     return data
 
 
+def _load():
+    if db.enabled():
+        return _defaults(db.kv_get(_KEY, dict(_DEFAULT)) or dict(_DEFAULT))
+    if not os.path.exists(config.SHIPMENT_STORE_FILE):
+        return dict(_DEFAULT)
+    try:
+        with open(config.SHIPMENT_STORE_FILE) as f:
+            data = json.load(f)
+    except (OSError, json.JSONDecodeError):
+        data = {}
+    return _defaults(data)
+
+
 def _save(data):
+    if db.enabled():
+        db.kv_set(_KEY, data)
+        return
     with open(config.SHIPMENT_STORE_FILE, "w") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
 

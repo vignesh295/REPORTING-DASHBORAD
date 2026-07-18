@@ -10,6 +10,9 @@ import json
 import os
 
 import config
+import db
+
+_KEY = "state"
 
 
 def _now():
@@ -17,6 +20,10 @@ def _now():
 
 
 def _load():
+    if db.enabled():
+        data = db.kv_get(_KEY, {"lanes": {}}) or {"lanes": {}}
+        data.setdefault("lanes", {})
+        return data
     if not os.path.exists(config.STATE_FILE):
         return {"lanes": {}}
     try:
@@ -29,6 +36,9 @@ def _load():
 
 
 def _save(data):
+    if db.enabled():
+        db.kv_set(_KEY, data)
+        return
     with open(config.STATE_FILE, "w") as f:
         json.dump(data, f, indent=2)
 
