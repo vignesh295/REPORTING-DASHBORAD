@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% set active = 'awb' %}
+{% block title %}AWB Tracker{% endblock %}
+
+{% block page_css %}
+<style>
+  .kpis{display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-bottom:20px;}
+  .kpi{padding:14px 16px; border-radius:13px; border:1px solid var(--line); background:var(--panel); box-shadow:var(--shadow);}
+  .kpi .lbl{font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--muted);}
+  .kpi .num{font-family:var(--mono); font-size:26px; font-weight:750; letter-spacing:-.02em; margin-top:5px; font-variant-numeric:tabular-nums;}
+  .kpi.late{background:var(--red-tint); border-color:var(--red-line);} .kpi.late .num{color:var(--red);}
+  .kpi.awaiting{background:var(--amber-tint); border-color:var(--amber-line);} .kpi.awaiting .num{color:var(--amber);}
+  .kpi.delivered .num{color:var(--ok);}
+
+  .tabs{display:flex; gap:6px; margin-bottom:14px; flex-wrap:wrap;}
+  .tab{font-size:13px; font-weight:650; color:var(--ink-2); text-decoration:none; padding:8px 13px; border-radius:9px; border:1px solid var(--line); background:var(--panel);}
+  .tab:hover{border-color:var(--accent); color:var(--accent);}
+  .tab.on{background:var(--brand-soft); border-color:var(--brand-soft); color:var(--brand-ink);}
+
+  .tbl-wrap{border:1px solid var(--line); border-radius:14px; box-shadow:var(--shadow); overflow:hidden; background:var(--panel);}
+  .tbl-head{display:flex; align-items:center; gap:10px; padding:12px 18px; border-bottom:1px solid var(--line); background:var(--panel-2);}
+  .tbl-head h2{font-size:14px; font-weight:700; margin:0;}
+  .scroll{overflow-x:auto;}
+  table{border-collapse:collapse; width:100%; font-size:13px;}
+  thead th{text-align:left; padding:10px 16px; font-size:10px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--muted); background:var(--panel-2); border-bottom:1px solid var(--line); white-space:nowrap;}
+  thead th.n{text-align:right;}
+  tbody td{padding:11px 16px; border-bottom:1px solid var(--line); white-space:nowrap; vertical-align:middle;}
+  tbody tr:last-child td{border-bottom:0;}
+  tbody tr:hover{background:var(--panel-2);}
+  td.n{text-align:right; font-family:var(--mono); font-variant-numeric:tabular-nums;}
+  .awb-no{font-family:var(--mono); font-weight:700;}
+  .awb-no a{color:var(--ink); text-decoration:none;}
+  .awb-no a:hover{color:var(--brand-ink); text-decoration:underline;}
+  .mono{font-family:var(--mono);}
+  .muted{color:var(--muted);}
+  .badge{display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:700; padding:3px 9px; border-radius:999px; text-transform:capitalize;}
+  .badge .d{width:7px; height:7px; border-radius:50%;}
+  .badge.late{color:var(--red); background:var(--red-soft); border:1px solid var(--red-line);} .badge.late .d{background:var(--red);}
+  .badge.awaiting{color:var(--amber); background:var(--amber-soft); border:1px solid var(--amber-line);} .badge.awaiting .d{background:var(--amber);}
+  .badge.scheduled{color:var(--muted); background:var(--panel-2); border:1px solid var(--line);} .badge.scheduled .d{background:var(--faint);}
+  .badge.delivered{color:var(--ok); background:var(--ok-soft); border:1px solid var(--ok-line);} .badge.delivered .d{background:var(--ok);}
+  .empty{display:flex; flex-direction:column; align-items:center; gap:8px; padding:46px 20px; color:var(--muted); font-size:14px; text-align:center;}
+  .empty svg{color:var(--faint);}
+  .notice{display:flex; gap:11px; align-items:flex-start; padding:14px 16px; border:1px solid var(--amber-line); border-radius:12px; background:var(--amber-soft); font-size:13px; color:var(--ink-2); margin-bottom:18px;}
+  .notice svg{color:var(--amber); flex:0 0 auto; margin-top:1px;}
+  .notice a{color:var(--accent); font-weight:650;}
+  @media (max-width:920px){ .kpis{grid-template-columns:1fr 1fr;} }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <h1>AWB Tracker</h1>
+  <p>One AWB = one shipped batch. Watched from its first ship date until the carrier reports delivery.</p>
+</div>
+
+{% if not token_set %}
+<div class="notice">
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><path d="M12 17h.01"/><circle cx="12" cy="12" r="9"/></svg>
+  <span>The AWB API isn't set up yet. Generate a token and grab the Apps Script in
+    <a href="{{ url_for('settings') }}">Settings → AWB tracking</a> to start feeding data in.</span>
+</div>
+{% endif %}
+
+<div class="kpis">
+  <div class="kpi"><div class="lbl">Total</div><div class="num">{{ summary.total }}</div></div>
+  <div class="kpi late"><div class="lbl">Late</div><div class="num">{{ summary.late }}</div></div>
+  <div class="kpi awaiting"><div class="lbl">Awaiting</div><div class="num">{{ summary.awaiting }}</div></div>
+  <div class="kpi"><div class="lbl">Scheduled</div><div class="num">{{ summary.scheduled }}</div></div>
+  <div class="kpi delivered"><div class="lbl">Delivered</div><div class="num">{{ summary.delivered }}</div></div>
+</div>
+
+<div class="tabs">
+  {% for key, label in [('active','Active'),('late','Late'),('awaiting','Awaiting'),('scheduled','Scheduled'),('delivered','Delivered'),('all','All')] %}
+  <a class="tab {{ 'on' if status_filter == key }}" href="{{ url_for('awb', status=key) }}">{{ label }}</a>
+  {% endfor %}
+</div>
+
+<div class="tbl-wrap">
+  <div class="tbl-head">
+    <h2>AWBs</h2>
+    <span class="badge scheduled"><span class="d"></span>{{ rows|length }} shown</span>
+  </div>
+  {% if rows %}
+  <div class="scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>AWB</th><th>Status</th><th>Carrier</th><th>Tracking ID</th>
+          <th class="n">Orders</th><th class="n">Qty</th><th>First ship</th><th>Age</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in rows %}
+        <tr>
+          <td class="awb-no"><a href="{{ url_for('awb_detail', awb_no=a.awb) }}">{{ a.awb }}</a></td>
+          <td><span class="badge {{ a.status }}"><span class="d"></span>{{ a.status }}</span></td>
+          <td>{{ a.carrier or '—' }}</td>
+          <td class="mono muted">{{ a.tracking_id or '—' }}</td>
+          <td class="n">{{ a.order_count }}</td>
+          <td class="n">{{ a.qty_total }}</td>
+          <td class="mono">{{ a.first_ship or '—' }}</td>
+          <td class="muted">
+            {% if a.status == 'delivered' %}delivered {{ a.delivered_at[:10] if a.delivered_at }}
+            {% elif a.status == 'scheduled' %}in {{ a.days }}d
+            {% elif a.days is not none %}{{ a.days }}d waiting
+            {% else %}—{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty">
+    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="M3.27 6.96 12 12.01l8.73-5.05"/><path d="M12 22.08V12"/></svg>
+    No AWBs in this view yet.
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

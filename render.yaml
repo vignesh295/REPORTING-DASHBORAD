@@ -1,0 +1,40 @@
+# Render Blueprint — deploy with one click from the repo.
+# Secrets (sync: false) are entered in the Render dashboard, never committed.
+services:
+  - type: web
+    name: trishoolin-ops
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120
+    envVars:
+      - key: FLASK_SECRET
+        generateValue: true
+      - key: FLASK_DEBUG
+        value: "false"
+      - key: AUTH_ENABLED
+        value: "true"
+      # First admin login (created on boot if no users exist)
+      - key: ADMIN_USER
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      # Google service account key, pasted as one JSON string
+      - key: GOOGLE_SERVICE_ACCOUNT_JSON
+        sync: false
+      # Target spreadsheets + AWB API token (or set later on the Settings page)
+      - key: RED_SPREADSHEET_ID
+        sync: false
+      - key: YELLOW_SPREADSHEET_ID
+        sync: false
+      - key: AWB_API_TOKEN
+        sync: false
+      # Email off by default; fill these to enable
+      - key: EMAIL_ENABLED
+        value: "false"
+      - key: SMTP_SENDER
+        sync: false
+      - key: SMTP_APP_PASSWORD
+        sync: false
+      - key: EMAIL_RECIPIENTS
+        sync: false

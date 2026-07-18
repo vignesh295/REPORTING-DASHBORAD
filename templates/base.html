@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Shipping Queue{% endblock %} · Trishoolin Ops</title>
+  <style>
+    :root{
+      --bg:#eef1f5; --panel:#ffffff; --panel-2:#f7f9fb;
+      --ink:#0f172a; --ink-2:#334155; --muted:#64748b; --faint:#94a3b8;
+      --line:#e2e8f0; --line-2:#cbd5e1;
+      --brand:#0f766e; --brand-ink:#0b5e57; --brand-soft:#e6f4f2;
+      --accent:#1d4ed8; --accent-hover:#1a44be; --accent-ring:rgba(29,78,216,.22);
+      --red:#c0392b; --red-soft:#fdecec; --red-line:#f0c2c2; --red-tint:#fcf1f0;
+      --amber:#b45309; --amber-soft:#fdf3e2; --amber-line:#f0dca0; --amber-tint:#fcf6e9;
+      --ok:#15803d; --ok-soft:#e6f4ea; --ok-line:#bfe0c9;
+      --warn:#b45309; --warn-soft:#fdf3e2;
+      --err:#c0392b; --err-soft:#fdecec; --err-line:#f0c2c2;
+      --shadow:0 1px 2px rgba(15,23,42,.06),0 6px 20px rgba(15,23,42,.05);
+      --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+      --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+      --sidebar-w:244px;
+    }
+    @media (prefers-color-scheme: dark){
+      :root{
+        --bg:#0a0f1a; --panel:#111827; --panel-2:#0d1420;
+        --ink:#f1f5f9; --ink-2:#cbd5e1; --muted:#94a3b8; --faint:#64748b;
+        --line:#1f2a3a; --line-2:#2b3849;
+        --brand:#2dd4bf; --brand-ink:#5eead4; --brand-soft:#0f2b2a;
+        --accent:#3b82f6; --accent-hover:#2f74e6; --accent-ring:rgba(59,130,246,.30);
+        --red:#f87171; --red-soft:#2a1518; --red-line:#5a2530; --red-tint:#20141a;
+        --amber:#fbbf24; --amber-soft:#2a1f10; --amber-line:#5a4420; --amber-tint:#1f1a10;
+        --ok:#4ade80; --ok-soft:#0f2417; --ok-line:#245036;
+        --warn:#fbbf24; --warn-soft:#2a1f10;
+        --err:#f87171; --err-soft:#2a1518; --err-line:#5a2530;
+        --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.35);
+      }
+    }
+    *{box-sizing:border-box;}
+    html,body{margin:0;}
+    body{
+      font-family:var(--sans); background:var(--bg); color:var(--ink);
+      -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility; line-height:1.5;
+    }
+    a{color:inherit;}
+
+    /* ---- app shell: fixed sidebar + main ---- */
+    .app{display:flex; min-height:100vh;}
+    .sidebar{
+      width:var(--sidebar-w); flex:0 0 var(--sidebar-w);
+      position:sticky; top:0; align-self:flex-start; height:100vh;
+      background:var(--panel); border-right:1px solid var(--line);
+      display:flex; flex-direction:column; padding:18px 14px;
+    }
+    .brand{display:flex; align-items:center; gap:11px; padding:6px 8px 16px;}
+    .mark{
+      width:38px; height:38px; border-radius:10px; flex:0 0 auto;
+      background:var(--brand-soft); border:1px solid var(--line);
+      display:grid; place-items:center; color:var(--brand);
+    }
+    .brand-txt{display:flex; flex-direction:column; line-height:1.2; min-width:0;}
+    .brand-name{font-size:15px; font-weight:700; letter-spacing:-.01em;}
+    .brand-sub{font-size:10px; font-weight:600; letter-spacing:.14em; text-transform:uppercase; color:var(--faint);}
+    .nav{display:flex; flex-direction:column; gap:3px; margin-top:6px;}
+    .nav-label{font-size:10px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--faint); padding:10px 10px 6px;}
+    .nav a{
+      display:flex; align-items:center; gap:11px; text-decoration:none;
+      padding:9px 11px; border-radius:9px; font-size:14px; font-weight:600; color:var(--ink-2);
+      transition:background .12s, color .12s;
+    }
+    .nav a svg{flex:0 0 auto; opacity:.85;}
+    .nav a:hover{background:var(--panel-2); color:var(--ink);}
+    .nav a.active{background:var(--brand-soft); color:var(--brand-ink);}
+    .nav a.active svg{opacity:1;}
+    .side-foot{margin-top:auto; padding-top:14px; border-top:1px solid var(--line);}
+    .user-chip{display:flex; align-items:center; gap:10px; padding:8px 10px;}
+    .avatar{
+      width:32px; height:32px; border-radius:8px; flex:0 0 auto; display:grid; place-items:center;
+      background:var(--accent); color:#fff; font-weight:700; font-size:13px;
+    }
+    .user-meta{display:flex; flex-direction:column; min-width:0; line-height:1.25;}
+    .user-name{font-size:13px; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+    .user-role{font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--faint);}
+    .signout{
+      display:flex; align-items:center; gap:9px; width:100%; margin-top:4px;
+      padding:9px 11px; border-radius:9px; font-size:13px; font-weight:650; color:var(--ink-2);
+      text-decoration:none; border:1px solid var(--line);
+    }
+    .signout:hover{border-color:var(--err); color:var(--err);}
+
+    .main{flex:1; min-width:0; display:flex; flex-direction:column;}
+    .main-inner{width:100%; max-width:1000px; margin:0 auto; padding:26px 26px 60px;}
+    .page-head{margin-bottom:20px;}
+    .page-head h1{font-size:22px; font-weight:750; letter-spacing:-.02em; margin:0 0 4px;}
+    .page-head p{margin:0; color:var(--muted); font-size:14px;}
+    .page-actions{margin-left:auto; display:flex; gap:10px; align-items:center;}
+    .head-row{display:flex; flex-wrap:wrap; align-items:flex-end; gap:12px;}
+
+    /* ---- shared atoms ---- */
+    .panel{background:var(--panel); border:1px solid var(--line); border-radius:14px; box-shadow:var(--shadow);}
+    .flash{padding:11px 14px; border-radius:10px; font-size:13.5px; margin-bottom:14px; border:1px solid transparent;}
+    .flash.error{background:var(--err-soft); color:var(--err); border-color:var(--err-line);}
+    .flash.ok{background:var(--ok-soft); color:var(--ok); border-color:var(--ok-line);}
+    .btn{
+      display:inline-flex; align-items:center; justify-content:center; gap:8px;
+      font-family:var(--sans); font-size:14px; font-weight:700; cursor:pointer;
+      border-radius:10px; padding:11px 16px; border:1px solid transparent; text-decoration:none;
+      transition:background .15s, border-color .15s, color .15s;
+    }
+    .btn-primary{background:var(--accent); color:#fff;}
+    .btn-primary:hover{background:var(--accent-hover);}
+    .btn-ghost{background:var(--panel); border-color:var(--line-2); color:var(--ink-2);}
+    .btn-ghost:hover{border-color:var(--accent); color:var(--accent);}
+    .mono{font-family:var(--mono);}
+    .pill{
+      display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:700;
+      letter-spacing:.02em; padding:3px 10px; border-radius:999px;
+      background:var(--panel-2); border:1px solid var(--line); color:var(--muted);
+    }
+    .dot{width:8px; height:8px; border-radius:50%; display:inline-block;}
+    .dot.red{background:var(--red);} .dot.amber{background:var(--amber);}
+    .dot.ok{background:var(--ok);} .dot.warn{background:var(--warn);}
+
+    /* ---- responsive: sidebar becomes a top bar ---- */
+    @media (max-width:820px){
+      .app{flex-direction:column;}
+      .sidebar{
+        width:100%; flex:none; height:auto; position:sticky; top:0; z-index:20;
+        flex-direction:row; align-items:center; gap:6px; padding:10px 12px;
+        border-right:0; border-bottom:1px solid var(--line);
+        background:color-mix(in srgb, var(--panel) 88%, transparent);
+        backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+        overflow-x:auto;
+      }
+      .brand{padding:0 8px 0 2px; flex:0 0 auto;}
+      .nav{flex-direction:row; margin-top:0; gap:2px;}
+      .nav-label{display:none;}
+      .nav a{padding:8px 11px;}
+      .side-foot{margin:0 0 0 auto; padding:0 0 0 10px; border-top:0; display:flex; align-items:center; gap:8px; flex:0 0 auto;}
+      .user-chip{display:none;}
+      .signout{margin-top:0; padding:8px 11px;}
+      .main-inner{padding:20px 16px 48px;}
+    }
+  </style>
+  {% block page_css %}{% endblock %}
+</head>
+<body>
+  <div class="app">
+    {% if user %}
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="mark" aria-hidden="true">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.4"/><circle cx="18" cy="18" r="2.4"/><path d="M8.4 6H15a3 3 0 0 1 3 3v6.4"/><path d="M6 8.4V15a3 3 0 0 0 3 3h1.5"/></svg>
+        </span>
+        <span class="brand-txt">
+          <span class="brand-name">Shipping Queue</span>
+          <span class="brand-sub">Trishoolin Ops</span>
+        </span>
+      </div>
+
+      <nav class="nav">
+        <span class="nav-label">Menu</span>
+        {% if user.role == 'admin' %}
+        <a href="{{ url_for('home') }}" class="{{ 'active' if active == 'home' }}">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg>
+          Home
+        </a>
+        <a href="{{ url_for('dashboard') }}" class="{{ 'active' if active == 'dashboard' }}">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+          Dashboard
+        </a>
+        {% endif %}
+        <a href="{{ url_for('upload') }}" class="{{ 'active' if active == 'upload' }}">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4"/><path d="m7 9 5-5 5 5"/><path d="M5 20h14"/></svg>
+          Upload
+        </a>
+        {% if user.role == 'admin' %}
+        <a href="{{ url_for('awb') }}" class="{{ 'active' if active == 'awb' }}">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 9.4 7.5 4.21"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="M3.27 6.96 12 12.01l8.73-5.05"/><path d="M12 22.08V12"/></svg>
+          AWB Tracker
+        </a>
+        <a href="{{ url_for('settings') }}" class="{{ 'active' if active == 'settings' }}">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2Z"/><circle cx="12" cy="12" r="3"/></svg>
+          Settings
+        </a>
+        {% endif %}
+      </nav>
+
+      <div class="side-foot">
+        <div class="user-chip">
+          <span class="avatar">{{ (user.username or '?')[0]|upper }}</span>
+          <span class="user-meta">
+            <span class="user-name">{{ user.username }}</span>
+            <span class="user-role">{{ user.role }}</span>
+          </span>
+        </div>
+        {% if auth_enabled %}
+        <a href="{{ url_for('logout') }}" class="signout">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>
+          Sign out
+        </a>
+        {% endif %}
+      </div>
+    </aside>
+    {% endif %}
+
+    <main class="main">
+      <div class="main-inner">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% for category, message in messages %}
+            <div class="flash {{ category }}">{{ message }}</div>
+          {% endfor %}
+        {% endwith %}
+        {% block content %}{% endblock %}
+      </div>
+    </main>
+  </div>
+</body>
+</html>

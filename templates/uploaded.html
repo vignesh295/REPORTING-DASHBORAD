@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% set active = 'upload' %}
+{% block title %}Uploaded{% endblock %}
+
+{% block page_css %}
+<style>
+  .done{max-width:520px; margin:6vh auto 0; text-align:center;}
+  .done .check{
+    width:64px; height:64px; border-radius:50%; margin:0 auto 18px; display:grid; place-items:center;
+    background:var(--ok-soft); border:1px solid var(--ok-line); color:var(--ok);
+  }
+  .done h1{font-size:22px; font-weight:750; letter-spacing:-.02em; margin:0 0 6px;}
+  .done p{color:var(--muted); font-size:14px; margin:0 auto 4px; max-width:42ch;}
+  .recap{
+    display:inline-flex; gap:0; margin:20px auto 24px; border:1px solid var(--line);
+    border-radius:12px; overflow:hidden; background:var(--panel); box-shadow:var(--shadow);
+  }
+  .recap div{padding:12px 18px; text-align:left;}
+  .recap div + div{border-left:1px solid var(--line);}
+  .recap .k{font-size:10.5px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--faint); margin-bottom:3px;}
+  .recap .v{font-size:14px; font-weight:650;}
+  .recap .v.mono{font-family:var(--mono); font-weight:600;}
+  .again{display:inline-flex; align-items:center; gap:8px;}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="done">
+  <div class="check" aria-hidden="true">
+    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+  </div>
+  <h1>Report uploaded</h1>
+  <p>Thanks — the report has been processed and the team has been notified.</p>
+
+  <div class="recap">
+    <div>
+      <div class="k">Lane</div>
+      <div class="v">{{ info.lane }}</div>
+    </div>
+    <div>
+      <div class="k">File</div>
+      <div class="v mono">{{ info.filename }}</div>
+    </div>
+  </div>
+
+  <div>
+    <a class="btn btn-primary again" href="{{ url_for('upload') }}">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+      Upload another
+    </a>
+  </div>
+</div>
+{% endblock %}

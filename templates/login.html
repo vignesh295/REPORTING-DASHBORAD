@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sign in · Trishoolin Ops</title>
+  <style>
+    :root{
+      --bg:#eef1f5; --panel:#ffffff; --panel-2:#f7f9fb;
+      --ink:#0f172a; --ink-2:#334155; --muted:#64748b; --faint:#94a3b8;
+      --line:#e2e8f0; --line-2:#cbd5e1;
+      --brand:#0f766e; --brand-soft:#e6f4f2;
+      --accent:#1d4ed8; --accent-hover:#1a44be; --accent-ring:rgba(29,78,216,.22);
+      --err:#c0392b; --err-soft:#fdecec; --err-line:#f0c2c2;
+      --shadow:0 1px 2px rgba(15,23,42,.06),0 10px 30px rgba(15,23,42,.08);
+      --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    }
+    @media (prefers-color-scheme: dark){
+      :root{
+        --bg:#0a0f1a; --panel:#111827; --panel-2:#0d1420;
+        --ink:#f1f5f9; --ink-2:#cbd5e1; --muted:#94a3b8; --faint:#64748b;
+        --line:#1f2a3a; --line-2:#2b3849;
+        --brand:#2dd4bf; --brand-soft:#0f2b2a;
+        --accent:#3b82f6; --accent-hover:#2f74e6; --accent-ring:rgba(59,130,246,.30);
+        --err:#f87171; --err-soft:#2a1518; --err-line:#5a2530;
+        --shadow:0 1px 2px rgba(0,0,0,.4),0 12px 34px rgba(0,0,0,.45);
+      }
+    }
+    *{box-sizing:border-box;}
+    html,body{margin:0; height:100%;}
+    body{
+      font-family:var(--sans); background:var(--bg); color:var(--ink);
+      -webkit-font-smoothing:antialiased; display:grid; place-items:center; padding:24px;
+    }
+    .card{
+      width:100%; max-width:390px; background:var(--panel); border:1px solid var(--line);
+      border-radius:16px; box-shadow:var(--shadow); padding:30px 30px 26px;
+    }
+    .brand{display:flex; align-items:center; gap:12px; margin-bottom:22px;}
+    .mark{
+      width:44px; height:44px; border-radius:12px; flex:0 0 auto;
+      background:var(--brand-soft); border:1px solid var(--line);
+      display:grid; place-items:center; color:var(--brand);
+    }
+    .brand-name{font-size:17px; font-weight:750; letter-spacing:-.01em;}
+    .brand-sub{font-size:10px; font-weight:700; letter-spacing:.16em; text-transform:uppercase; color:var(--faint);}
+    h1{font-size:18px; font-weight:700; margin:0 0 3px;}
+    .sub{color:var(--muted); font-size:13.5px; margin:0 0 20px;}
+    label{display:block; font-size:12.5px; font-weight:700; color:var(--ink-2); margin:14px 0 6px; letter-spacing:.01em;}
+    input{
+      width:100%; font-family:var(--sans); font-size:15px; color:var(--ink);
+      background:var(--panel-2); border:1px solid var(--line-2); border-radius:10px; padding:11px 13px;
+      transition:border-color .15s, box-shadow .15s;
+    }
+    input:focus{outline:none; border-color:var(--accent); box-shadow:0 0 0 4px var(--accent-ring);}
+    button{
+      width:100%; margin-top:22px; font-family:var(--sans); font-size:15px; font-weight:700;
+      color:#fff; background:var(--accent); border:0; border-radius:10px; padding:12px; cursor:pointer;
+      transition:background .15s;
+    }
+    button:hover{background:var(--accent-hover);}
+    .flash{padding:11px 13px; border-radius:10px; font-size:13.5px; margin-bottom:14px;
+           background:var(--err-soft); color:var(--err); border:1px solid var(--err-line);}
+    .foot{margin-top:18px; font-size:12px; color:var(--faint); text-align:center;}
+  </style>
+</head>
+<body>
+  <form class="card" method="post" action="{{ url_for('login') }}">
+    <div class="brand">
+      <span class="mark" aria-hidden="true">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.4"/><circle cx="18" cy="18" r="2.4"/><path d="M8.4 6H15a3 3 0 0 1 3 3v6.4"/><path d="M6 8.4V15a3 3 0 0 0 3 3h1.5"/></svg>
+      </span>
+      <span>
+        <div class="brand-name">Shipping Queue</div>
+        <div class="brand-sub">Trishoolin Ops</div>
+      </span>
+    </div>
+
+    <h1>Sign in</h1>
+    <p class="sub">Enter your credentials to continue.</p>
+
+    {% with messages = get_flashed_messages() %}
+      {% for message in messages %}<div class="flash">{{ message }}</div>{% endfor %}
+    {% endwith %}
+
+    <label for="username">Username</label>
+    <input id="username" name="username" autocomplete="username" autofocus required>
+
+    <label for="password">Password</label>
+    <input id="password" name="password" type="password" autocomplete="current-password" required>
+
+    <button type="submit">Sign in</button>
+    <div class="foot">Trishoolin House · internal use only</div>
+  </form>
+</body>
+</html>

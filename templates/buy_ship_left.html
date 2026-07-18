@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% set active = 'home' %}
+{% block title %}Buy Ship Left{% endblock %}
+
+{% block page_css %}
+<style>
+  .banner{display:flex; gap:11px; align-items:flex-start; padding:16px 18px; border:1px solid var(--line); border-radius:13px; background:var(--panel); box-shadow:var(--shadow); font-size:13.5px; color:var(--ink-2); line-height:1.55;}
+  .banner svg{color:var(--brand); flex:0 0 auto; margin-top:1px;}
+  .banner b{color:var(--ink);}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="head-row" style="justify-content:flex-end; margin-bottom:16px;">
+  <a class="btn btn-ghost" href="{{ url_for('home') }}">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H6"/><path d="m11 6-6 6 6 6"/></svg>
+    Home
+  </a>
+</div>
+
+<div class="page-head">
+  <h1>Buy Ship Left</h1>
+  <p>India-lane orders bought &amp; ship-confirmed, but the stock isn't physically in yet.</p>
+</div>
+
+<div class="banner">
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><path d="M12 17h.01"/><circle cx="12" cy="12" r="9"/></svg>
+  <span>This workflow is <b>planned</b> — the card and section are ready. Tell me the details (which sheet/report feeds it and what should happen) and I'll build it out, the same way as Shipment.</span>
+</div>
+{% endblock %}

@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% set active = 'home' %}
+{% block title %}Shipment{% endblock %}
+
+{% block page_css %}
+<style>
+  .panel{background:var(--panel); border:1px solid var(--line); border-radius:14px; box-shadow:var(--shadow); overflow:hidden; margin-bottom:18px;}
+  .panel .ph{padding:15px 20px; border-bottom:1px solid var(--line); background:var(--panel-2); font-size:13px; font-weight:700; display:flex; align-items:center; gap:9px;}
+  .steps{padding:8px 20px 16px;}
+  .step{display:flex; gap:14px; padding:14px 0; border-bottom:1px solid var(--line);}
+  .step:last-child{border-bottom:0;}
+  .snum{flex:0 0 auto; width:26px; height:26px; border-radius:8px; display:grid; place-items:center; font-family:var(--mono); font-size:12px; font-weight:700; color:var(--brand); background:var(--brand-soft); border:1px solid var(--line);}
+  .stext{font-size:13.5px; color:var(--ink-2); line-height:1.55;}
+  .stext b{color:var(--ink);}
+  .banner{display:flex; gap:11px; align-items:flex-start; padding:14px 16px; border:1px solid var(--amber-line); border-radius:12px; background:var(--amber-soft); font-size:13px; color:var(--ink-2); margin-bottom:18px;}
+  .banner svg{color:var(--amber); flex:0 0 auto; margin-top:1px;}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="head-row" style="justify-content:flex-end; margin-bottom:16px;">
+  <a class="btn btn-ghost" href="{{ url_for('home') }}">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H6"/><path d="m11 6-6 6 6 6"/></svg>
+    Home
+  </a>
+</div>
+
+<div class="page-head">
+  <h1>Shipment</h1>
+  <p>AWB shipment tracking → Amazon shipment-update files. One AWB = one shipped batch.</p>
+</div>
+
+<div class="banner">
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><path d="M12 17h.01"/><circle cx="12" cy="12" r="9"/></svg>
+  <span>This workflow is being set up. The steps below are the agreed flow — we'll wire each one up (and you'll share the Amazon file template).</span>
+</div>
+
+<div class="panel">
+  <div class="ph">Workflow</div>
+  <div class="steps">
+    <div class="step"><span class="snum">1</span><div class="stext"><b>Collect shipment emails.</b> The Apps Script gathers Excel attachments from the <span class="mono">SHIPMENT UPDATES</span> label into Drive; the system saves each AWB's details.</div></div>
+    <div class="step"><span class="snum">2</span><div class="stext"><b>Upload the unshipped-orders report</b> (txt). Any order <b>not</b> in it counts as <b>cancelled</b>.</div></div>
+    <div class="step"><span class="snum">3</span><div class="stext"><b>Track every AWB</b> against the status sheet — delivered or not, plus the last ship date. An Apps Script pings the system the moment an AWB is delivered.</div></div>
+    <div class="step"><span class="snum">4</span><div class="stext"><b>On delivery</b>, the system prompts you to refresh the unshipped report, then <b>generates the Amazon shipment-update file</b> for that AWB's order IDs (minus cancelled) and emails it to you.</div></div>
+    <div class="step"><span class="snum">5</span><div class="stext"><b>Dashboard sheet</b> keeps the running data for the project.</div></div>
+  </div>
+</div>
+{% endblock %}

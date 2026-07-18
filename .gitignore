@@ -1,0 +1,22 @@
+# Secrets — never commit these
+.env
+service_account.json
+*.json.key
+
+# App data / local runtime state (hashed logins, web config, stores)
+users.json
+state.json
+settings.json
+awbs.json
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Uploads / scratch / sample data (may contain customer PII)
+uploads/
+samples/
+*.xlsm
+*.xlsx

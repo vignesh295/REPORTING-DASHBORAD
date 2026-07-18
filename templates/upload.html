@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+{% set active = 'upload' %}
+{% block title %}Upload{% endblock %}
+
+{% block page_css %}
+<style>
+  .console{max-width:660px;}
+  .panel{overflow:hidden; margin-bottom:16px;}
+  .panel-head{padding:20px 22px 16px; border-bottom:1px solid var(--line);}
+  .kicker{font-size:11px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--brand); margin:0 0 6px;}
+  .panel-head h1{font-size:21px; line-height:1.2; margin:0 0 6px; letter-spacing:-.02em;}
+  .lede{color:var(--muted); font-size:13.5px; margin:0; max-width:52ch;}
+  .panel-body{padding:20px 22px 22px;}
+
+  .field{margin-bottom:18px;}
+  .field:last-child{margin-bottom:0;}
+  label.lbl{display:flex; align-items:center; gap:8px; font-weight:650; font-size:12.5px; letter-spacing:.02em; margin:0 0 8px; color:var(--ink-2);}
+  label.lbl .step{font-family:var(--mono); font-size:11px; color:var(--brand); background:var(--brand-soft); border:1px solid var(--line); width:20px; height:20px; border-radius:6px; display:grid; place-items:center; flex:0 0 auto;}
+  .select-wrap{position:relative;}
+  .select-wrap svg.chev{position:absolute; right:12px; top:50%; transform:translateY(-50%); pointer-events:none; color:var(--muted);}
+  select{-webkit-appearance:none; appearance:none; width:100%; padding:12px 40px 12px 13px; font-size:15px; font-weight:500; color:var(--ink); border:1px solid var(--line-2); border-radius:10px; background:var(--panel); cursor:pointer; font-family:var(--sans);}
+  select:required:invalid{color:var(--muted);}
+  select:focus-visible{outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-ring);}
+  .file-input:focus-visible + .dropzone{border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-ring);}
+  .file-input{position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0;}
+  .dropzone{position:relative; display:flex; flex-direction:column; align-items:center; text-align:center; gap:6px; cursor:pointer; border:1.6px dashed var(--line-2); border-radius:12px; background:var(--panel-2); padding:28px 20px; transition:border-color .15s, background .15s, box-shadow .15s;}
+  .dropzone:hover{border-color:color-mix(in srgb,var(--accent) 45%, var(--line-2));}
+  .dropzone.dragover{border-color:var(--accent); border-style:solid; background:color-mix(in srgb,var(--accent) 8%, var(--panel)); box-shadow:0 0 0 3px var(--accent-ring);}
+  .dropzone.has-file{border-style:solid; border-color:var(--ok-line); background:var(--ok-soft);}
+  .dropzone .zone-ic{width:46px; height:46px; border-radius:12px; flex:0 0 auto; margin-bottom:2px; background:var(--panel); border:1px solid var(--line); color:var(--brand); display:grid; place-items:center; transition:color .15s, background .15s, border-color .15s;}
+  .dropzone.has-file .zone-ic{color:var(--ok); background:var(--ok-soft); border-color:var(--ok-line);}
+  .dropzone .zone-title{font-size:14px; font-weight:600; color:var(--ink);}
+  .dropzone .zone-title b{color:var(--brand-ink); font-weight:650;}
+  .dropzone .zone-hint{font-size:12px; color:var(--muted);}
+  .dropzone .zone-file{display:none; align-items:center; gap:8px; max-width:100%; font-size:13.5px; font-weight:600; color:var(--ok);}
+  .dropzone .zone-file svg{flex:0 0 auto;}
+  .dropzone .zone-file #fname{font-family:var(--mono); font-weight:600; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .dropzone.has-file .zone-title, .dropzone.has-file .zone-hint{display:none;}
+  .dropzone.has-file .zone-file{display:inline-flex;}
+  .legend{display:flex; flex-wrap:wrap; gap:8px; margin:16px 0 4px;}
+  .sig{display:inline-flex; align-items:center; gap:7px; font-size:12px; font-weight:600; padding:5px 10px; border-radius:999px; border:1px solid var(--line); background:var(--panel-2); color:var(--ink-2);}
+  .sig .bar{width:3px; height:13px; border-radius:2px;}
+  .sig.red .bar{background:var(--red);} .sig.red{color:var(--red); border-color:var(--red-line); background:var(--red-soft);}
+  .sig.amber .bar{background:var(--amber);} .sig.amber{color:var(--amber); border-color:var(--amber-line); background:var(--amber-soft);}
+  button[type=submit]{margin-top:20px; width:100%; padding:14px; font-size:15px; font-weight:700; letter-spacing:.01em; color:#fff; background:var(--accent); border:0; border-radius:11px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:9px; font-family:var(--sans); transition:background .15s, transform .05s;}
+  button[type=submit]:hover{background:var(--accent-hover);}
+  button[type=submit]:active{transform:translateY(1px);}
+  button[type=submit]:focus-visible{outline:none; box-shadow:0 0 0 3px var(--accent-ring);}
+
+  .health{margin-top:16px; border:1px solid var(--line); border-radius:14px; background:var(--panel); box-shadow:var(--shadow); overflow:hidden;}
+  .health-head{display:flex; align-items:center; gap:8px; padding:12px 18px; border-bottom:1px solid var(--line); background:var(--panel-2); font-size:11px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--muted);}
+  .health-head .pulse{width:8px; height:8px; border-radius:50%; background:var(--ok); box-shadow:0 0 0 3px var(--ok-soft);}
+  .hrow{display:flex; align-items:center; gap:12px; padding:13px 18px; border-left:4px solid transparent; border-top:1px solid var(--line);}
+  .hrow:first-child{border-top:0;}
+  .hrow.ok{border-left-color:var(--ok);} .hrow.warn{border-left-color:var(--amber);}
+  .hrow .ic{width:30px; height:30px; border-radius:8px; flex:0 0 auto; display:grid; place-items:center; background:var(--panel-2); border:1px solid var(--line); color:var(--muted);}
+  .hrow.ok .ic{color:var(--ok); background:var(--ok-soft); border-color:var(--ok-line);}
+  .hrow.warn .ic{color:var(--amber); background:var(--amber-soft); border-color:var(--amber-line);}
+  .hrow .hmain{flex:1; min-width:0;}
+  .hrow .hlabel{font-size:13.5px; font-weight:650; color:var(--ink);}
+  .hrow .hdetail{font-size:12px; color:var(--muted); margin-top:2px;}
+  .hrow .hdetail code{font-family:var(--mono); font-size:11.5px;}
+  .badge{font-size:11px; font-weight:700; letter-spacing:.03em; padding:4px 10px; border-radius:999px; white-space:nowrap; flex:0 0 auto;}
+  .badge.ok{color:var(--ok); background:var(--ok-soft); border:1px solid var(--ok-line);}
+  .badge.warn{color:var(--amber); background:var(--amber-soft); border:1px solid var(--amber-line);}
+  .footnote{display:flex; gap:8px; align-items:flex-start; font-size:12px; color:var(--muted); padding:12px 18px; border-top:1px solid var(--line); background:var(--panel-2);}
+  .footnote svg{flex:0 0 auto; margin-top:1px; color:var(--faint);}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="console">
+  <section class="panel">
+    <div class="panel-head">
+      <p class="kicker">New dispatch run</p>
+      <h1>Upload the order report</h1>
+      <p class="lede">Pick your lane and upload its report. Overdue (red) and due-today
+        (amber) orders are split and recorded — you'll get a confirmation.</p>
+    </div>
+
+    <div class="panel-body">
+      <form action="{{ url_for('process') }}" method="post" enctype="multipart/form-data">
+        <div class="field">
+          <label class="lbl" for="lane"><span class="step">1</span> Destination lane</label>
+          <div class="select-wrap">
+            <select name="lane" id="lane" required>
+              <option value="" disabled selected>Choose a lane…</option>
+              {% for lane in lanes %}
+                <option value="{{ lane }}">{{ lane }}</option>
+              {% endfor %}
+            </select>
+            <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+          </div>
+        </div>
+
+        <div class="field">
+          <label class="lbl" for="file"><span class="step">2</span> Order report</label>
+          <input class="file-input" type="file" name="file" id="file" accept=".xlsm,.xlsx" required>
+          <label class="dropzone" id="dropzone" for="file">
+            <span class="zone-ic" aria-hidden="true">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M12 4l-4 4M12 4l4 4"/><path d="M5 15v3a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3"/></svg>
+            </span>
+            <span class="zone-title"><b>Click to upload</b> or drag &amp; drop</span>
+            <span class="zone-hint">Excel workbook · .xlsm or .xlsx</span>
+            <span class="zone-file">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+              <span id="fname"></span>
+            </span>
+          </label>
+        </div>
+
+        <div class="legend">
+          <span class="sig red"><span class="bar"></span>Red = OVERDUE</span>
+          <span class="sig amber"><span class="bar"></span>Amber = TODAY</span>
+        </div>
+
+        <button type="submit">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h13"/><path d="m13 6 6 6-6 6"/></svg>
+          Process &amp; upload
+        </button>
+      </form>
+    </div>
+  </section>
+
+  {% if user and user.role == 'admin' %}
+  <section class="health">
+    <div class="health-head"><span class="pulse"></span> System readiness</div>
+    <div class="health-rows">
+      <div class="hrow {{ 'ok' if status.google_ready else 'warn' }}">
+        <span class="ic" aria-hidden="true">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M9 4v16"/></svg>
+        </span>
+        <div class="hmain">
+          <div class="hlabel">Google Sheets sync</div>
+          {% if status.google_ready %}
+            <div class="hdetail">Service account and target sheets are configured.</div>
+          {% else %}
+            <div class="hdetail">
+              {% if not status.sa_exists %}<code>service-account file missing</code>{% endif %}
+              {% if not status.red_id_set %} · <code>RED id unset</code>{% endif %}
+              {% if not status.yellow_id_set %} · <code>YELLOW id unset</code>{% endif %}
+            </div>
+          {% endif %}
+        </div>
+        <span class="badge {{ 'ok' if status.google_ready else 'warn' }}">{{ 'READY' if status.google_ready else 'SETUP' }}</span>
+      </div>
+
+      <div class="hrow {{ 'ok' if status.email_ready else 'warn' }}">
+        <span class="ic" aria-hidden="true">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>
+        </span>
+        <div class="hmain">
+          <div class="hlabel">Email notifications</div>
+          {% if status.email_ready %}
+            <div class="hdetail">Sender, app password and recipients are set.</div>
+          {% else %}
+            <div class="hdetail">Set Gmail sender, app password and recipients.</div>
+          {% endif %}
+        </div>
+        <span class="badge {{ 'ok' if status.email_ready else 'warn' }}">{{ 'READY' if status.email_ready else 'SETUP' }}</span>
+      </div>
+    </div>
+  </section>
+  {% endif %}
+</div>
+
+<script>
+  (function(){
+    var input = document.getElementById('file');
+    var zone  = document.getElementById('dropzone');
+    var fname = document.getElementById('fname');
+    if(!input || !zone) return;
+    function showName(){
+      if(input.files && input.files.length){
+        var f = input.files[0];
+        zone.classList.add('has-file');
+        var kb = f.size ? (f.size < 1048576
+                  ? Math.max(1, Math.round(f.size / 1024)) + ' KB'
+                  : (f.size / 1048576).toFixed(1) + ' MB') : '';
+        fname.textContent = f.name + (kb ? '  ·  ' + kb : '');
+        fname.title = f.name;
+      }else{
+        zone.classList.remove('has-file');
+        fname.textContent = '';
+      }
+    }
+    input.addEventListener('change', showName);
+    ['dragenter','dragover'].forEach(function(e){
+      zone.addEventListener(e, function(ev){ ev.preventDefault(); zone.classList.add('dragover'); });
+    });
+    ['dragleave','dragend'].forEach(function(e){
+      zone.addEventListener(e, function(ev){ ev.preventDefault(); zone.classList.remove('dragover'); });
+    });
+    zone.addEventListener('drop', function(ev){
+      ev.preventDefault(); zone.classList.remove('dragover');
+      if(ev.dataTransfer && ev.dataTransfer.files && ev.dataTransfer.files.length){
+        input.files = ev.dataTransfer.files; showName();
+      }
+    });
+    showName();
+  })();
+</script>
+{% endblock %}

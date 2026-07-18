@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% set active = 'home' %}
+{% block title %}Home{% endblock %}
+
+{% block page_css %}
+<style>
+  .hub{display:grid; grid-template-columns:repeat(2,1fr); gap:18px; max-width:760px;}
+  .hcard{
+    display:flex; flex-direction:column; gap:12px; text-decoration:none;
+    background:var(--panel); border:1px solid var(--line); border-radius:16px;
+    box-shadow:var(--shadow); padding:22px 22px 20px; transition:border-color .15s, transform .06s;
+  }
+  .hcard:hover{border-color:var(--accent); transform:translateY(-2px);}
+  .hicon{
+    width:46px; height:46px; border-radius:12px; display:grid; place-items:center;
+    background:var(--brand-soft); border:1px solid var(--line); color:var(--brand);
+  }
+  .hcard.blue .hicon{background:color-mix(in srgb,var(--accent) 14%, var(--panel)); border-color:color-mix(in srgb,var(--accent) 30%, var(--line)); color:var(--accent);}
+  .htitle{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
+  .htitle h2{font-size:17px; font-weight:750; letter-spacing:-.01em; margin:0; color:var(--ink);}
+  .chip{font-size:10px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; padding:3px 8px; border-radius:999px;}
+  .chip.prog{color:var(--amber); background:var(--amber-soft); border:1px solid var(--amber-line);}
+  .chip.plan{color:var(--muted); background:var(--panel-2); border:1px solid var(--line);}
+  .hdesc{font-size:13.5px; color:var(--muted); line-height:1.55; flex:1;}
+  .hopen{display:inline-flex; align-items:center; gap:7px; font-size:13px; font-weight:700; color:var(--accent); margin-top:2px;}
+  @media (max-width:640px){ .hub{grid-template-columns:1fr;} }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <h1>Home</h1>
+  <p>Pick a workflow to work in.</p>
+</div>
+
+<div class="hub">
+  <a class="hcard" href="{{ url_for('shipment') }}">
+    <span class="hicon">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="M3.27 6.96 12 12.01l8.73-5.05"/><path d="M12 22.08V12"/></svg>
+    </span>
+    <div class="htitle"><h2>Shipment</h2><span class="chip prog">In progress</span></div>
+    <div class="hdesc">Track AWB batches from ship-out to delivery, reconcile cancellations against the unshipped-orders report, and generate the Amazon shipment-update file when a batch is delivered.</div>
+    <span class="hopen">Open
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h13"/><path d="m13 6 6 6-6 6"/></svg>
+    </span>
+  </a>
+
+  <a class="hcard blue" href="{{ url_for('buy_ship_left') }}">
+    <span class="hicon">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M7 12h13"/><path d="M11 18h9"/><circle cx="3.5" cy="12" r="1"/><circle cx="7.5" cy="18" r="1"/></svg>
+    </span>
+    <div class="htitle"><h2>Buy Ship Left</h2><span class="chip plan">Planned</span></div>
+    <div class="hdesc">Track India-lane orders that are bought &amp; ship-confirmed but not yet physically in from the supplier — the ones that either resolve into the main flow or get refunded.</div>
+    <span class="hopen">Open
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h13"/><path d="m13 6 6 6-6 6"/></svg>
+    </span>
+  </a>
+</div>
+{% endblock %}

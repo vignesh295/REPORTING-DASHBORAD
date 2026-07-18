@@ -1,0 +1,313 @@
+{% extends "base.html" %}
+{% set active = 'settings' %}
+{% block title %}Settings{% endblock %}
+
+{% block page_css %}
+<style>
+  .scol{max-width:760px;}
+  .card{background:var(--panel); border:1px solid var(--line); border-radius:14px; box-shadow:var(--shadow); margin-bottom:18px; overflow:hidden;}
+  .card-head{padding:15px 20px; border-bottom:1px solid var(--line); background:var(--panel-2);}
+  .card-head h2{font-size:14px; font-weight:700; margin:0; display:flex; align-items:center; gap:9px;}
+  .card-head p{margin:4px 0 0; font-size:12.5px; color:var(--muted);}
+  .card-body{padding:18px 20px;}
+  .grp{margin-bottom:16px;}
+  .grp:last-child{margin-bottom:0;}
+  .grp label{display:block; font-size:12.5px; font-weight:650; color:var(--ink-2); margin:0 0 6px;}
+  .grp .hint{font-size:11.5px; color:var(--muted); margin-top:5px;}
+  input[type=text], input[type=password], textarea, select{
+    width:100%; font-family:var(--sans); font-size:14px; color:var(--ink);
+    background:var(--panel-2); border:1px solid var(--line-2); border-radius:9px; padding:10px 12px;
+  }
+  input.mono, textarea.mono{font-family:var(--mono); font-size:13px;}
+  textarea{resize:vertical; min-height:92px; line-height:1.5;}
+  input:focus, textarea:focus, select:focus{outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-ring);}
+  .row2{display:grid; grid-template-columns:1fr 1fr; gap:14px;}
+  .check{display:flex; align-items:center; gap:9px; font-size:13.5px; font-weight:600; color:var(--ink-2);}
+  .check input{width:auto;}
+  .card-foot{padding:14px 20px; border-top:1px solid var(--line); background:var(--panel-2); display:flex; justify-content:flex-end;}
+  .sa{display:flex; gap:10px; align-items:center; flex-wrap:wrap; font-size:13px; padding:11px 13px; border:1px solid var(--line); border-radius:10px; background:var(--panel-2); margin-bottom:14px;}
+  .sa .mono{font-family:var(--mono); color:var(--ink); word-break:break-all;}
+  .chip{font-size:11px; font-weight:700; padding:3px 9px; border-radius:999px;}
+  .chip.ok{color:var(--ok); background:var(--ok-soft); border:1px solid var(--ok-line);}
+  .chip.warn{color:var(--amber); background:var(--amber-soft); border:1px solid var(--amber-line);}
+
+  .utable{width:100%; border-collapse:collapse; font-size:13.5px;}
+  .utable th{text-align:left; font-size:10.5px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--muted); padding:8px 12px; border-bottom:1px solid var(--line);}
+  .utable td{padding:10px 12px; border-bottom:1px solid var(--line); vertical-align:middle;}
+  .utable tr:last-child td{border-bottom:0;}
+  .uname{font-weight:650;}
+  .uname .youtag{font-size:10px; font-weight:700; color:var(--brand-ink); background:var(--brand-soft); border:1px solid var(--line); border-radius:999px; padding:1px 7px; margin-left:7px;}
+  .inline{display:inline-flex; gap:6px; align-items:center;}
+  .inline select, .inline input{padding:7px 9px; font-size:13px; width:auto;}
+  .inline input[type=password]{width:130px;}
+  .btn-sm{padding:7px 12px; font-size:13px; border-radius:8px;}
+  .btn-danger{background:var(--err-soft); color:var(--err); border:1px solid var(--err-line);}
+  .btn-danger:hover{background:var(--err); color:#fff;}
+  .uacts{display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end;}
+  .adduser{display:grid; grid-template-columns:1.4fr 1.4fr .9fr auto; gap:10px; align-items:end; margin-top:4px;}
+  .adduser .grp{margin:0;}
+  .endpoint{display:flex; align-items:center; gap:10px; margin-bottom:10px; flex-wrap:wrap;}
+  .endpoint .tag{font-size:10px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--brand-ink); background:var(--brand-soft); border:1px solid var(--line); border-radius:6px; padding:3px 8px; flex:0 0 auto;}
+  .endpoint code{font-family:var(--mono); font-size:12.5px; color:var(--ink); background:var(--panel-2); border:1px solid var(--line); border-radius:8px; padding:7px 10px; flex:1; min-width:0; overflow-x:auto; white-space:nowrap;}
+  .tokrow{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:6px;}
+  .tokrow code{font-family:var(--mono); font-size:13px; color:var(--ink); background:var(--panel-2); border:1px solid var(--line-2); border-radius:8px; padding:9px 12px; flex:1; min-width:0; overflow-x:auto; white-space:nowrap;}
+  .tokrow code.unset{color:var(--amber);}
+  .codewrap{position:relative; margin-top:8px;}
+  .copybtn{position:absolute; top:8px; right:8px; font-size:11px; font-weight:700; color:var(--ink-2); background:var(--panel); border:1px solid var(--line-2); border-radius:7px; padding:4px 9px; cursor:pointer;}
+  .copybtn:hover{border-color:var(--accent); color:var(--accent);}
+  pre.code{margin:0; font-family:var(--mono); font-size:12px; line-height:1.55; color:var(--ink); background:var(--panel-2); border:1px solid var(--line); border-radius:10px; padding:14px 14px; overflow-x:auto;}
+  details.scriptbox{margin-top:12px; border:1px solid var(--line); border-radius:10px; overflow:hidden;}
+  details.scriptbox > summary{cursor:pointer; padding:11px 14px; font-size:13px; font-weight:650; background:var(--panel-2); list-style:none;}
+  details.scriptbox > summary::-webkit-details-marker{display:none;}
+  details.scriptbox > summary::before{content:'▸ '; color:var(--muted);}
+  details.scriptbox[open] > summary::before{content:'▾ ';}
+  details.scriptbox .codewrap{margin:12px;}
+  .warnline{display:flex; gap:9px; align-items:flex-start; font-size:12.5px; color:var(--muted); margin-top:10px;}
+  .warnline svg{color:var(--amber); flex:0 0 auto; margin-top:1px;}
+  @media (max-width:720px){ .row2, .adduser{grid-template-columns:1fr;} .uacts{justify-content:flex-start;} }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="scol">
+  <div class="page-head"><h1>Settings</h1><p>Configure Google Sheets &amp; email, manage lanes, and manage users.</p></div>
+
+  <!-- ===== App configuration ===== -->
+  <form method="post" action="{{ url_for('settings_config') }}">
+    <div class="card">
+      <div class="card-head">
+        <h2>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M9 4v16"/></svg>
+          Google Sheets
+        </h2>
+        <p>Where red / yellow orders are written. Share both sheets with the service account.</p>
+      </div>
+      <div class="card-body">
+        <div class="sa">
+          <span class="chip {{ 'ok' if status.sa_exists else 'warn' }}">{{ 'SERVICE ACCOUNT OK' if status.sa_exists else 'NO SERVICE ACCOUNT' }}</span>
+          {% if sa_email %}<span>Share your sheets (Editor) with</span><span class="mono">{{ sa_email }}</span>{% else %}<span>Add <span class="mono">service_account.json</span> to the project folder.</span>{% endif %}
+        </div>
+        <div class="row2">
+          <div class="grp">
+            <label for="red_id">RED spreadsheet ID</label>
+            <input class="mono" type="text" id="red_id" name="red_id" value="{{ cfg.RED_SPREADSHEET_ID }}" placeholder="1AbCdEf…XyZ">
+          </div>
+          <div class="grp">
+            <label for="yellow_id">YELLOW spreadsheet ID</label>
+            <input class="mono" type="text" id="yellow_id" name="yellow_id" value="{{ cfg.YELLOW_SPREADSHEET_ID }}" placeholder="1GhIjKl…WvU">
+          </div>
+        </div>
+        <div class="grp" style="margin-top:2px"><span class="hint">The ID is the long part of the sheet URL: <span class="mono">…/spreadsheets/d/&lt;ID&gt;/edit</span></span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h2>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg>
+          Lanes
+        </h2>
+        <p>One lane per line. These become the upload dropdown and the Sheet tab names.</p>
+      </div>
+      <div class="card-body">
+        <div class="grp">
+          <textarea class="mono" name="lanes" spellcheck="false">{{ cfg.LANES | join('\n') }}</textarea>
+          <span class="hint">{{ cfg.LANES | length }} lanes currently.</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h2>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>
+          Email notifications
+        </h2>
+        <p>Gmail + an App Password. The count email is sent to the recipients after each upload.</p>
+      </div>
+      <div class="card-body">
+        <div class="grp">
+          <label class="check"><input type="checkbox" name="email_enabled" {{ 'checked' if cfg.EMAIL_ENABLED }}> Send the count email after each upload</label>
+        </div>
+        <div class="row2">
+          <div class="grp">
+            <label for="sender">Sender (Gmail address)</label>
+            <input type="text" id="sender" name="sender" value="{{ cfg.SMTP_SENDER }}" placeholder="ops@gmail.com">
+          </div>
+          <div class="grp">
+            <label for="app_password">App password</label>
+            <input type="password" id="app_password" name="app_password" value="" placeholder="{{ '•••••••••• (set — leave blank to keep)' if cfg.SMTP_APP_PASSWORD else '16-character app password' }}">
+            <span class="hint">Leave blank to keep the current one.</span>
+          </div>
+        </div>
+        <div class="grp">
+          <label for="recipients">Recipients</label>
+          <textarea id="recipients" name="recipients" style="min-height:70px">{{ cfg.EMAIL_RECIPIENTS | join('\n') }}</textarea>
+          <span class="hint">One address per line (or comma-separated).</span>
+        </div>
+      </div>
+      <div class="card-foot"><button class="btn btn-primary" type="submit">Save settings</button></div>
+    </div>
+  </form>
+
+  <!-- ===== AWB tracking / Apps Script ===== -->
+  <div class="card">
+    <div class="card-head">
+      <h2>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="M3.27 6.96 12 12.01l8.73-5.05"/><path d="M12 22.08V12"/></svg>
+        AWB tracking
+      </h2>
+      <p>Your Google Apps Scripts push AWB batches + delivery status to these endpoints. Keep the token secret.</p>
+    </div>
+    <div class="card-body">
+      <div class="grp">
+        <label>API token</label>
+        <div class="tokrow">
+          <code class="{{ '' if cfg.AWB_API_TOKEN else 'unset' }}">{{ cfg.AWB_API_TOKEN or 'not set — generate one' }}</code>
+          <form method="post" action="{{ url_for('settings_awb_token') }}">
+            <button class="btn btn-ghost btn-sm" type="submit">{{ 'Regenerate' if cfg.AWB_API_TOKEN else 'Generate token' }}</button>
+          </form>
+        </div>
+        <span class="hint">Sent by the Apps Scripts as the <span class="mono">X-API-Key</span> header. Regenerating invalidates the old token.</span>
+      </div>
+
+      <div class="grp">
+        <label>Endpoints</label>
+        <div class="endpoint"><span class="tag">Ingest</span><code>POST {{ url_for('api_awb_ingest', _external=True) }}</code></div>
+        <div class="endpoint"><span class="tag">Status</span><code>POST {{ url_for('api_awb_status', _external=True) }}</code></div>
+      </div>
+
+      <div class="warnline">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><path d="M12 17h.01"/><circle cx="12" cy="12" r="9"/></svg>
+        <span>Apps Script runs in Google's cloud, so it can't reach <span class="mono">127.0.0.1</span>. Host the app on a public URL (deploy or a tunnel like ngrok) and swap that host into the scripts below.</span>
+      </div>
+
+      <details class="scriptbox">
+        <summary>Apps Script — Drive folder → ingest AWB batches</summary>
+        <div class="codewrap">
+          <button class="copybtn" type="button" onclick="copyCode(this)">Copy</button>
+          <pre class="code">// Time-trigger this (e.g. every 5 min). AWB files in the folder must be Google
+// Sheets (xlsx uploads: turn on "convert uploads" or Drive-convert them first).
+const INGEST_URL = '{{ url_for('api_awb_ingest', _external=True) }}';
+const TOKEN      = '{{ cfg.AWB_API_TOKEN or 'PASTE_TOKEN_HERE' }}';
+const FOLDER_ID  = 'YOUR_DRIVE_FOLDER_ID';
+
+function pushNewAwbFiles() {
+  const props = PropertiesService.getScriptProperties();
+  const since = Number(props.getProperty('lastRun') || 0);
+  const files = DriveApp.getFolderById(FOLDER_ID).getFiles();
+  while (files.hasNext()) {
+    const f = files.next();
+    if (f.getLastUpdated().getTime() &lt;= since) continue;
+    const data = SpreadsheetApp.open(f).getSheets()[0].getDataRange().getValues();
+    const headers = data.shift().map(h =&gt; String(h).trim());
+    const rows = data.filter(r =&gt; r.join('')).map(r =&gt; {
+      const o = {}; headers.forEach((h, i) =&gt; o[h] = r[i]); return o;
+    });
+    UrlFetchApp.fetch(INGEST_URL, {
+      method: 'post', contentType: 'application/json',
+      headers: { 'X-API-Key': TOKEN }, muteHttpExceptions: true,
+      payload: JSON.stringify({ rows: rows })
+    });
+  }
+  props.setProperty('lastRun', String(Date.now()));
+}</pre>
+        </div>
+      </details>
+
+      <details class="scriptbox">
+        <summary>Apps Script — status sheet → mark delivered</summary>
+        <div class="codewrap">
+          <button class="copybtn" type="button" onclick="copyCode(this)">Copy</button>
+          <pre class="code">// Add as an installable "on edit" trigger on your AWB status sheet.
+// Set AWB_COL / STATUS_COL to your columns (1 = A, 2 = B, ...).
+const STATUS_URL = '{{ url_for('api_awb_status', _external=True) }}';
+const TOKEN      = '{{ cfg.AWB_API_TOKEN or 'PASTE_TOKEN_HERE' }}';
+const AWB_COL    = 1;
+const STATUS_COL = 2;
+
+function onEditAwbStatus(e) {
+  const sh = e.range.getSheet(), row = e.range.getRow();
+  if (row === 1) return;
+  const status = String(sh.getRange(row, STATUS_COL).getValue());
+  if (!/deliver/i.test(status)) return;
+  const awb = sh.getRange(row, AWB_COL).getValue();
+  UrlFetchApp.fetch(STATUS_URL, {
+    method: 'post', contentType: 'application/json',
+    headers: { 'X-API-Key': TOKEN }, muteHttpExceptions: true,
+    payload: JSON.stringify({ awb: awb, status: 'delivered' })
+  });
+}</pre>
+        </div>
+      </details>
+    </div>
+  </div>
+
+  <!-- ===== Users ===== -->
+  <div class="card">
+    <div class="card-head">
+      <h2>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Users
+      </h2>
+      <p>ops = upload only · admin = dashboard + everything. Passwords are stored hashed.</p>
+    </div>
+    <div class="card-body" style="padding:6px 12px 14px;">
+      <table class="utable">
+        <thead><tr><th>User</th><th>Role</th><th style="text-align:right">Actions</th></tr></thead>
+        <tbody>
+          {% for username, role in users.items() | sort %}
+          <tr>
+            <td class="uname">{{ username }}{% if username == me %}<span class="youtag">you</span>{% endif %}</td>
+            <td>
+              <form class="inline" method="post" action="{{ url_for('settings_user_role') }}">
+                <input type="hidden" name="username" value="{{ username }}">
+                <select name="role">
+                  <option value="ops" {{ 'selected' if role == 'ops' }}>ops</option>
+                  <option value="admin" {{ 'selected' if role == 'admin' }}>admin</option>
+                </select>
+                <button class="btn btn-ghost btn-sm" type="submit">Set</button>
+              </form>
+            </td>
+            <td>
+              <div class="uacts">
+                <form class="inline" method="post" action="{{ url_for('settings_user_passwd') }}">
+                  <input type="hidden" name="username" value="{{ username }}">
+                  <input type="password" name="password" placeholder="new password" required>
+                  <button class="btn btn-ghost btn-sm" type="submit">Reset</button>
+                </form>
+                <form method="post" action="{{ url_for('settings_user_delete') }}" onsubmit="return confirm('Delete user {{ username }}?');">
+                  <input type="hidden" name="username" value="{{ username }}">
+                  <button class="btn btn-sm btn-danger" type="submit" {{ 'disabled' if username == me }}>Delete</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="card-body" style="border-top:1px solid var(--line);">
+      <form class="adduser" method="post" action="{{ url_for('settings_user_add') }}">
+        <div class="grp"><label>Username</label><input type="text" name="username" required></div>
+        <div class="grp"><label>Password</label><input type="password" name="password" required></div>
+        <div class="grp"><label>Role</label>
+          <select name="role"><option value="ops">ops</option><option value="admin">admin</option></select>
+        </div>
+        <button class="btn btn-primary" type="submit">Add user</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  function copyCode(btn){
+    var pre = btn.parentNode.querySelector('pre');
+    if(!pre) return;
+    navigator.clipboard.writeText(pre.innerText).then(function(){
+      var t = btn.textContent; btn.textContent = 'Copied';
+      setTimeout(function(){ btn.textContent = t; }, 1400);
+    });
+  }
+</script>
+{% endblock %}

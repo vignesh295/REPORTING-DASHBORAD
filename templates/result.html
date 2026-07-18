@@ -1,0 +1,282 @@
+{% extends "base.html" %}
+{% set active = 'upload' %}
+{% block title %}Report — {{ r.lane }}{% endblock %}
+
+{% block page_css %}
+<style>
+  .panel{overflow:hidden; margin-bottom:18px;}
+  .lane-head{padding:22px 24px 20px;}
+  .lane-top{display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-bottom:14px;}
+  .kicker{font-size:11px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--brand);}
+  .run-tag{font-family:var(--mono); font-size:11px; color:var(--muted); border:1px solid var(--line); border-radius:999px; padding:3px 9px; background:var(--panel-2);}
+  .route{display:inline-flex; align-items:center; gap:0; flex-wrap:wrap; border:1px solid var(--line-2); border-radius:12px; overflow:hidden; background:var(--panel-2);}
+  .route .node{display:inline-flex; align-items:center; gap:9px; padding:11px 16px;}
+  .route .node .pin{color:var(--brand); flex:0 0 auto;}
+  .route .node .place{font-size:18px; font-weight:750; letter-spacing:-.01em; line-height:1;}
+  .route .node .role{font-size:10px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--faint); margin-top:3px;}
+  .route .node .stk{display:flex; flex-direction:column;}
+  .route .leg{display:flex; align-items:center; padding:0 4px; color:var(--brand); background:var(--panel); align-self:stretch; border-left:1px solid var(--line); border-right:1px solid var(--line);}
+  .route.single .node .place{font-size:19px;}
+  .sub{color:var(--muted); font-size:13px; margin:14px 0 0; display:flex; flex-wrap:wrap; gap:6px 16px;}
+  .sub .kv{display:inline-flex; gap:6px; align-items:baseline;}
+  .sub .kv b{color:var(--ink-2); font-weight:600;}
+  .sub .kv .mono{font-family:var(--mono); color:var(--ink); font-size:12.5px; word-break:break-all;}
+
+  .stats{display:grid; grid-template-columns:1fr 1fr; gap:0; border-top:1px solid var(--line);}
+  .tile{padding:18px 24px; border-left:4px solid var(--line); display:flex; flex-direction:column; gap:2px;}
+  .tile + .tile{border-left:1px solid var(--line);}
+  .tile.red{border-left-color:var(--red); background:var(--red-tint);}
+  .tile.amber{border-left-color:var(--amber); background:var(--amber-tint);}
+  .tile .tlabel{font-size:11px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); display:flex; align-items:center; gap:7px;}
+  .tile .tlabel .dot{width:8px; height:8px; border-radius:2px;}
+  .tile.red .tlabel .dot{background:var(--red);}
+  .tile.amber .tlabel .dot{background:var(--amber);}
+  .tile .num{font-family:var(--mono); font-variant-numeric:tabular-nums; font-size:34px; font-weight:750; letter-spacing:-.02em; line-height:1.1;}
+  .tile.red .num{color:var(--red);}
+  .tile.amber .num{color:var(--amber);}
+  .tile .cap{font-size:12px; color:var(--muted);}
+
+  .statuses{display:grid; grid-template-columns:1fr 1fr; border-top:1px solid var(--line);}
+  .srow{display:flex; align-items:center; gap:11px; padding:14px 24px; border-left:4px solid transparent; min-width:0;}
+  .srow + .srow{border-left:1px solid var(--line);}
+  .srow.ok{border-left-color:var(--ok);}
+  .srow.warn{border-left-color:var(--amber);}
+  .srow.err{border-left-color:var(--err);}
+  .srow .ic{width:30px; height:30px; border-radius:8px; flex:0 0 auto; display:grid; place-items:center; background:var(--panel-2); border:1px solid var(--line); color:var(--muted);}
+  .srow.ok .ic{color:var(--ok); background:var(--ok-soft); border-color:var(--ok-line);}
+  .srow.warn .ic{color:var(--amber); background:var(--amber-soft); border-color:var(--amber-line);}
+  .srow.err .ic{color:var(--err); background:var(--err-soft); border-color:var(--err-line);}
+  .srow .smain{min-width:0; flex:1;}
+  .srow .slabel{font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--muted);}
+  .srow .sval{font-family:var(--mono); font-size:12.5px; margin-top:2px; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:100%;}
+  .srow .sval.ok{color:var(--ok);} .srow .sval.warn{color:var(--amber);}
+  .srow .sval.err{color:var(--err); white-space:normal; word-break:break-word;}
+
+  .sec-head{display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:16px 22px 14px; border-bottom:1px solid var(--line);}
+  .sec-head h2{font-size:14px; margin:0; letter-spacing:-.01em; font-weight:700;}
+  .sec-head .count{font-family:var(--mono); font-variant-numeric:tabular-nums; font-size:12px; font-weight:700; padding:3px 9px; border-radius:999px; border:1px solid var(--line); background:var(--panel-2); color:var(--muted);}
+  .sec-head.red .count{color:var(--red); background:var(--red-soft); border-color:var(--red-line);}
+  .sec-head.amber .count{color:var(--amber); background:var(--amber-soft); border-color:var(--amber-line);}
+  .sec-head .bar{width:3px; height:15px; border-radius:2px; background:var(--line-2);}
+  .sec-head.red .bar{background:var(--red);}
+  .sec-head.amber .bar{background:var(--amber);}
+  .sec-body{padding:6px 14px 16px;}
+
+  .tscroll{overflow:auto; border:1px solid var(--line); border-radius:10px; max-height:360px;}
+  .rt{border-collapse:separate; border-spacing:0; width:100%; font-size:12.5px;}
+  .rt thead th{position:sticky; top:0; z-index:1; text-align:left; white-space:nowrap; background:var(--panel-2); color:var(--muted); font-size:10.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; padding:10px 12px; border-bottom:1px solid var(--line-2);}
+  .rt tbody td{padding:9px 12px; border-bottom:1px solid var(--line); color:var(--ink-2); vertical-align:top;}
+  .rt tbody tr:last-child td{border-bottom:0;}
+  .rt tbody tr:nth-child(even) td{background:color-mix(in srgb, var(--panel-2) 55%, transparent);}
+  .data td:nth-child(1),.data td:nth-child(6),.data td:nth-child(2),.data td:nth-child(3),.data td:nth-child(5){font-family:var(--mono); font-variant-numeric:tabular-nums; white-space:nowrap; color:var(--ink);}
+  .data td:nth-child(2){font-weight:600;}
+  .data td:nth-child(5),.data th:nth-child(5){text-align:right;}
+  .data td:nth-child(4){min-width:180px;}
+  .empty{display:flex; align-items:center; gap:9px; padding:22px 16px; margin:4px 8px; color:var(--muted); font-size:13px; border:1px dashed var(--line-2); border-radius:10px; background:var(--panel-2);}
+  .empty svg{color:var(--faint); flex:0 0 auto;}
+
+  .summary td:first-child{white-space:normal; font-weight:600; color:var(--ink);}
+  .summary td.n{font-family:var(--mono); font-variant-numeric:tabular-nums; text-align:right; width:120px; white-space:nowrap;}
+  .summary th.n{text-align:right;}
+  .summary td.n.red[data-hot="1"]{color:var(--red); font-weight:700;}
+  .summary td.n.amber[data-hot="1"]{color:var(--amber); font-weight:700;}
+  .summary tr.active td{background:var(--brand-soft);}
+  .summary tr.active td:first-child{box-shadow:inset 3px 0 0 var(--brand);}
+  .just{font-family:var(--sans); font-size:10.5px; font-weight:700; letter-spacing:.04em; color:var(--brand-ink); background:var(--panel); border:1px solid var(--line); border-radius:999px; padding:2px 8px; margin-left:8px; white-space:nowrap; vertical-align:middle;}
+
+  @media (max-width:640px){
+    .stats,.statuses{grid-template-columns:1fr;}
+    .tile + .tile{border-left:4px solid var(--line);}
+    .tile.red + .tile{border-left-color:var(--red);}
+    .srow + .srow{border-left:4px solid transparent; border-top:1px solid var(--line);}
+    .lane-head{padding:18px 16px;}
+    .sec-head{padding-left:16px; padding-right:16px;}
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="head-row" style="margin-bottom:16px; justify-content:flex-end;">
+  <a class="btn btn-ghost" href="{{ url_for('upload') }}">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H6"/><path d="m11 6-6 6 6 6"/></svg>
+    Process another lane
+  </a>
+</div>
+
+<!-- ===== Dispatch report header ===== -->
+<section class="panel">
+  <div class="lane-head">
+    <div class="lane-top">
+      <span class="kicker">Dispatch report</span>
+      <span class="run-tag">processed</span>
+    </div>
+
+    {% set parts = r.lane.split('→') %}
+    {% if parts|length == 2 %}
+      <div class="route">
+        <span class="node">
+          <span class="pin" aria-hidden="true">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 5-8 12-8 12s-8-7-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></svg>
+          </span>
+          <span class="stk"><span class="place">{{ parts[0]|trim }}</span><span class="role">Origin</span></span>
+        </span>
+        <span class="leg" aria-hidden="true">
+          <svg width="26" height="16" viewBox="0 0 26 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 8h18" stroke-dasharray="2 3"/><path d="m17 3 5 5-5 5"/></svg>
+        </span>
+        <span class="node">
+          <span class="pin" aria-hidden="true">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 5-8 12-8 12s-8-7-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></svg>
+          </span>
+          <span class="stk"><span class="place">{{ parts[1]|trim }}</span><span class="role">Destination</span></span>
+        </span>
+      </div>
+    {% else %}
+      <div class="route single">
+        <span class="node">
+          <span class="pin" aria-hidden="true">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 5-8 12-8 12s-8-7-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></svg>
+          </span>
+          <span class="stk"><span class="place">{{ r.lane }}</span><span class="role">Lane</span></span>
+        </span>
+      </div>
+    {% endif %}
+
+    <p class="sub">
+      <span class="kv"><b>Source</b> <span class="mono">{{ r.filename }}</span></span>
+      {% if r.assignee %}<span class="kv"><b>Assignee</b> <span class="mono">{{ r.assignee }}</span></span>{% endif %}
+      <span class="kv"><b>Total routed</b> <span class="mono">{{ r.red_count + r.yellow_count }}</span></span>
+      {% if r.red_history_total is not none %}
+      <span class="kv"><b>On record · all overdue</b> <span class="mono">{{ r.red_history_total }}{% if r.red_history_added %} · +{{ r.red_history_added }} new{% endif %}</span></span>
+      {% endif %}
+    </p>
+  </div>
+
+  <div class="stats">
+    <div class="tile red">
+      <span class="tlabel"><span class="dot"></span>Red · Overdue</span>
+      <span class="num">{{ r.red_count }}</span>
+      <span class="cap">order IDs past their ship date</span>
+    </div>
+    <div class="tile amber">
+      <span class="tlabel"><span class="dot"></span>Amber · Today</span>
+      <span class="num">{{ r.yellow_count }}</span>
+      <span class="cap">order IDs shipping today</span>
+    </div>
+  </div>
+
+  <div class="statuses">
+    <div class="srow {% if 'written' in r.sheets_status %}ok{% elif 'ERROR' in r.sheets_status %}err{% else %}warn{% endif %}">
+      <span class="ic" aria-hidden="true">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M9 4v16"/></svg>
+      </span>
+      <div class="smain">
+        <div class="slabel">Google Sheets</div>
+        {% if 'written' in r.sheets_status %}
+          <div class="sval ok" title="{{ r.sheets_status }}">{{ r.sheets_status }}</div>
+        {% elif 'ERROR' in r.sheets_status %}
+          <div class="sval err" title="{{ r.sheets_status }}">{{ r.sheets_status }}</div>
+        {% else %}
+          <div class="sval warn" title="{{ r.sheets_status }}">{{ r.sheets_status }}</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="srow {% if r.email_status == 'sent' %}ok{% elif r.email_status in ['disabled','not-configured',''] %}warn{% else %}err{% endif %}">
+      <span class="ic" aria-hidden="true">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>
+      </span>
+      <div class="smain">
+        <div class="slabel">Email</div>
+        {% if r.email_status == 'sent' %}
+          <div class="sval ok">sent</div>
+        {% elif r.email_status in ['disabled','not-configured',''] %}
+          <div class="sval warn" title="{{ r.email_status or 'not attempted' }}">{{ r.email_status or 'not attempted' }}</div>
+        {% else %}
+          <div class="sval err" title="{{ r.email_status }}">{{ r.email_status }}</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== All-lanes summary ===== -->
+{% if r.red_lane_counts %}
+<section class="panel">
+  <div class="sec-head">
+    <span class="bar"></span>
+    <h2>Live counts across all lanes</h2>
+    <span class="count">from sheets</span>
+  </div>
+  <div class="sec-body">
+    <div class="tscroll">
+      <table class="rt summary">
+        <thead>
+          <tr>
+            <th>Lane</th>
+            <th class="n">Red · Overdue</th>
+            <th class="n">Amber · Today</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for lane in lanes %}
+          <tr class="{% if lane == r.lane %}active{% endif %}">
+            <td>{{ lane }}{% if lane == r.lane %}<span class="just">just updated</span>{% endif %}</td>
+            <td class="n red" data-hot="{{ 1 if r.red_lane_counts.get(lane, 0) else 0 }}">{{ r.red_lane_counts.get(lane, 0) }}</td>
+            <td class="n amber" data-hot="{{ 1 if r.yellow_lane_counts.get(lane, 0) else 0 }}">{{ r.yellow_lane_counts.get(lane, 0) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+{% endif %}
+
+<!-- ===== Red / OVERDUE ===== -->
+<section class="panel">
+  <div class="sec-head red">
+    <span class="bar"></span>
+    <h2>Red · Overdue</h2>
+    <span class="count">{{ r.red_count }}</span>
+  </div>
+  <div class="sec-body">
+    {% if r.red %}
+    <div class="tscroll">
+      <table class="rt data">
+        <thead><tr>{% for h in r.headers %}<th>{{ h }}</th>{% endfor %}</tr></thead>
+        <tbody>{% for row in r.red %}<tr>{% for cell in row %}<td>{{ cell }}</td>{% endfor %}</tr>{% endfor %}</tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+      No OVERDUE orders in this file.
+    </div>
+    {% endif %}
+  </div>
+</section>
+
+<!-- ===== Yellow / TODAY ===== -->
+<section class="panel">
+  <div class="sec-head amber">
+    <span class="bar"></span>
+    <h2>Amber · Today</h2>
+    <span class="count">{{ r.yellow_count }}</span>
+  </div>
+  <div class="sec-body">
+    {% if r.yellow %}
+    <div class="tscroll">
+      <table class="rt data">
+        <thead><tr>{% for h in r.headers %}<th>{{ h }}</th>{% endfor %}</tr></thead>
+        <tbody>{% for row in r.yellow %}<tr>{% for cell in row %}<td>{{ cell }}</td>{% endfor %}</tr>{% endfor %}</tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+      No TODAY orders in this file.
+    </div>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}
