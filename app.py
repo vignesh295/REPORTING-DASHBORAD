@@ -417,7 +417,25 @@ def settings_config():
     if f.get("app_password", "").strip():
         updates["SMTP_APP_PASSWORD"] = f.get("app_password").strip()
     config.save_settings(updates)
-    flash("Settings saved.", "ok")
+
+    # "Send test email" saves first (so the toggle + creds take effect), then sends.
+    if f.get("_action") == "test":
+        import emailer
+        try:
+            status = emailer.send_test_email()
+        except Exception as e:  # noqa: BLE001
+            traceback.print_exc()
+            status = f"ERROR: {e}"
+        if status == "sent":
+            flash(f"Saved. Test email sent to {', '.join(config.EMAIL_RECIPIENTS)}.", "ok")
+        elif status == "disabled":
+            flash("Saved — but email is off. Tick 'Send the count email' and try again.", "error")
+        elif status == "not-configured":
+            flash("Saved — but set the Gmail sender, app password and recipients to send email.", "error")
+        else:
+            flash(f"Saved. Test email failed: {status}", "error")
+    else:
+        flash("Settings saved.", "ok")
     return redirect(url_for("settings"))
 
 
