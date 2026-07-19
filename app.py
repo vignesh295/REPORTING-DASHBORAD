@@ -416,6 +416,9 @@ def settings_config():
     # Blank app-password field means "keep the existing one".
     if f.get("app_password", "").strip():
         updates["SMTP_APP_PASSWORD"] = f.get("app_password").strip()
+    # Clicking "send test" means you want email on — enable it regardless of the tick.
+    if f.get("_action") == "test":
+        updates["EMAIL_ENABLED"] = True
     config.save_settings(updates)
 
     # "Send test email" saves first (so the toggle + creds take effect), then sends.
