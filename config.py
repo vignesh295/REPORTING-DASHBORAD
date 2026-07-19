@@ -106,12 +106,18 @@ EMAIL_ENABLED = True
 SMTP_SENDER = ""
 SMTP_APP_PASSWORD = ""
 EMAIL_RECIPIENTS = []
+# Resend HTTP email API — used instead of SMTP when set (works where SMTP is
+# blocked, e.g. Render). EMAIL_FROM is the "from" address (e.g. onboarding@resend.dev
+# for testing, or an address on your verified domain).
+RESEND_API_KEY = ""
+EMAIL_FROM = ""
 
 # Keys the Settings page is allowed to write.
 EDITABLE_KEYS = (
     "RED_SPREADSHEET_ID", "YELLOW_SPREADSHEET_ID", "LANES",
     "EMAIL_ENABLED", "SMTP_SENDER", "SMTP_APP_PASSWORD", "EMAIL_RECIPIENTS",
     "AWB_API_TOKEN", "DRIVE_FOLDER_ID", "AWB_SHEET_ID",
+    "RESEND_API_KEY", "EMAIL_FROM",
 )
 
 
@@ -119,8 +125,10 @@ def reload():
     """(Re)compute the web-editable values from settings.json over .env."""
     global RED_SPREADSHEET_ID, YELLOW_SPREADSHEET_ID, LANES
     global EMAIL_ENABLED, SMTP_SENDER, SMTP_APP_PASSWORD, EMAIL_RECIPIENTS
-    global AWB_API_TOKEN, DRIVE_FOLDER_ID, AWB_SHEET_ID
+    global AWB_API_TOKEN, DRIVE_FOLDER_ID, AWB_SHEET_ID, RESEND_API_KEY, EMAIL_FROM
     s = _load_settings()
+    RESEND_API_KEY = s["RESEND_API_KEY"] if "RESEND_API_KEY" in s else os.getenv("RESEND_API_KEY", "")
+    EMAIL_FROM = s["EMAIL_FROM"] if "EMAIL_FROM" in s else os.getenv("EMAIL_FROM", "")
     AWB_API_TOKEN = s["AWB_API_TOKEN"] if "AWB_API_TOKEN" in s else os.getenv("AWB_API_TOKEN", "")
     DRIVE_FOLDER_ID = s["DRIVE_FOLDER_ID"] if "DRIVE_FOLDER_ID" in s else os.getenv("DRIVE_FOLDER_ID", "")
     AWB_SHEET_ID = s["AWB_SHEET_ID"] if "AWB_SHEET_ID" in s else os.getenv("AWB_SHEET_ID", "")
@@ -168,6 +176,8 @@ def current_settings():
         "AWB_API_TOKEN": AWB_API_TOKEN,
         "DRIVE_FOLDER_ID": DRIVE_FOLDER_ID,
         "AWB_SHEET_ID": AWB_SHEET_ID,
+        "RESEND_API_KEY": RESEND_API_KEY,
+        "EMAIL_FROM": EMAIL_FROM,
     }
 
 
@@ -205,7 +215,9 @@ def google_ready():
 
 
 def email_ready():
-    return bool(EMAIL_ENABLED and SMTP_SENDER and SMTP_APP_PASSWORD and EMAIL_RECIPIENTS)
+    if not (EMAIL_ENABLED and EMAIL_RECIPIENTS):
+        return False
+    return bool((RESEND_API_KEY and EMAIL_FROM) or (SMTP_SENDER and SMTP_APP_PASSWORD))
 
 
 reload()

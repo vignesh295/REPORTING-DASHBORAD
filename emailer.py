@@ -1,22 +1,96 @@
 """
-Sends the per-lane order-count report over Gmail SMTP (SSL) using an App Password.
-Also emails the generated Amazon shipment-confirmation file as an attachment.
+Email delivery. Uses the Resend HTTP API when configured (RESEND_API_KEY +
+EMAIL_FROM) — which works where outbound SMTP is blocked (e.g. Render) — and
+falls back to Gmail SMTP otherwise. Sends: the per-lane count report, the
+Amazon shipment-confirmation file, and a test email.
 """
+import base64
+import json
 import smtplib
+import ssl
+import urllib.error
+import urllib.request
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
 import config
 
+try:
+    import certifi
+    _SSL = ssl.create_default_context(cafile=certifi.where())
+except Exception:  # pragma: no cover
+    _SSL = ssl.create_default_context()
 
-def send_test_email():
-    """Send a simple 'system is working' email to the configured recipients.
-    Returns 'sent' | 'disabled' | 'not-configured'; raises on SMTP failure."""
+
+# ---------------------------------------------------------------------------
+# Transport — Resend (HTTP) preferred, SMTP fallback
+# ---------------------------------------------------------------------------
+def _deliver(subject, text, html=None, attachments=None):
+    """Send an email. attachments: list of {'filename','content'} (content=str).
+    Returns 'sent' | 'disabled' | 'not-configured'; raises on a send failure."""
     if not config.EMAIL_ENABLED:
         return "disabled"
-    if not (config.SMTP_SENDER and config.SMTP_APP_PASSWORD and config.EMAIL_RECIPIENTS):
+    if not config.EMAIL_RECIPIENTS:
         return "not-configured"
+    if config.RESEND_API_KEY and config.EMAIL_FROM:
+        return _deliver_resend(subject, text, html, attachments)
+    if config.SMTP_SENDER and config.SMTP_APP_PASSWORD:
+        return _deliver_smtp(subject, text, html, attachments)
+    return "not-configured"
 
+
+def _deliver_resend(subject, text, html, attachments):
+    payload = {"from": config.EMAIL_FROM, "to": list(config.EMAIL_RECIPIENTS),
+               "subject": subject}
+    if text:
+        payload["text"] = text
+    if html:
+        payload["html"] = html
+    if attachments:
+        payload["attachments"] = [
+            {"filename": a["filename"],
+             "content": base64.b64encode(a["content"].encode("utf-8")).decode("ascii")}
+            for a in attachments]
+    req = urllib.request.Request(
+        "https://api.resend.com/emails", data=json.dumps(payload).encode("utf-8"),
+        headers={"Authorization": "Bearer " + config.RESEND_API_KEY,
+                 "Content-Type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=20, context=_SSL) as r:
+            resp = json.loads(r.read())
+    except urllib.error.HTTPError as e:
+        raise RuntimeError(f"Resend {e.code}: {e.read().decode('utf-8', 'replace')}")
+    if resp.get("id"):
+        return "sent"
+    raise RuntimeError("Resend: " + json.dumps(resp))
+
+
+def _deliver_smtp(subject, text, html, attachments):
+    outer = MIMEMultipart("mixed")
+    alt = MIMEMultipart("alternative")
+    if text:
+        alt.attach(MIMEText(text, "plain"))
+    if html:
+        alt.attach(MIMEText(html, "html"))
+    outer.attach(alt)
+    for a in (attachments or []):
+        part = MIMEText(a["content"], "plain", "utf-8")
+        part.add_header("Content-Disposition", "attachment", filename=a["filename"])
+        outer.attach(part)
+    outer["Subject"] = subject
+    outer["From"] = config.SMTP_SENDER
+    outer["To"] = ", ".join(config.EMAIL_RECIPIENTS)
+    with smtplib.SMTP_SSL(config.SMTP_HOST, config.SMTP_PORT, timeout=20) as server:
+        server.login(config.SMTP_SENDER, config.SMTP_APP_PASSWORD)
+        server.sendmail(config.SMTP_SENDER, config.EMAIL_RECIPIENTS, outer.as_string())
+    return "sent"
+
+
+# ---------------------------------------------------------------------------
+# Messages
+# ---------------------------------------------------------------------------
+def send_test_email():
+    """Send a simple 'system is working' email to the configured recipients."""
     text = ("Trishoolin Ops — test email.\n\n"
             "The system is working. If you're reading this, email delivery is set up "
             "correctly.\n")
@@ -25,28 +99,11 @@ def send_test_email():
       <p style="color:#555;margin:0">This is a test email. If you're reading it,
          email delivery is set up correctly.</p>
     </div>""")
-
-    msg = MIMEMultipart("alternative")
-    msg["Subject"] = "Trishoolin Ops — test email (system is working)"
-    msg["From"] = config.SMTP_SENDER
-    msg["To"] = ", ".join(config.EMAIL_RECIPIENTS)
-    msg.attach(MIMEText(text, "plain"))
-    msg.attach(MIMEText(html, "html"))
-
-    with smtplib.SMTP_SSL(config.SMTP_HOST, config.SMTP_PORT, timeout=20) as server:
-        server.login(config.SMTP_SENDER, config.SMTP_APP_PASSWORD)
-        server.sendmail(config.SMTP_SENDER, config.EMAIL_RECIPIENTS, msg.as_string())
-    return "sent"
+    return _deliver("Trishoolin Ops — test email (system is working)", text, html)
 
 
 def send_amazon_file(awb, project, file_text, filename, summary):
-    """Email the Amazon shipment-confirmation file (tab-separated) as an attachment.
-    Returns 'sent' | 'disabled' | 'not-configured'; raises on SMTP failure."""
-    if not config.EMAIL_ENABLED:
-        return "disabled"
-    if not (config.SMTP_SENDER and config.SMTP_APP_PASSWORD and config.EMAIL_RECIPIENTS):
-        return "not-configured"
-
+    """Email the Amazon shipment-confirmation file (tab-separated) as an attachment."""
     cancelled = summary.get("cancelled_orders", [])
     body = (
         f"Amazon shipment-confirmation file for AWB {awb} ({project}).\n\n"
@@ -56,21 +113,9 @@ def send_amazon_file(awb, project, file_text, filename, summary):
     if cancelled:
         body += "Cancelled order IDs: " + ", ".join(cancelled) + "\n"
     body += "\nUpload the attached file to Amazon (Shipping Confirmation)."
-
-    msg = MIMEMultipart()
-    msg["Subject"] = (f"Amazon shipment file — {project or 'shipment'} — AWB {awb} "
-                      f"({summary.get('confirmed_orders', 0)} orders)")
-    msg["From"] = config.SMTP_SENDER
-    msg["To"] = ", ".join(config.EMAIL_RECIPIENTS)
-    msg.attach(MIMEText(body, "plain"))
-    attachment = MIMEText(file_text, "plain", "utf-8")
-    attachment.add_header("Content-Disposition", "attachment", filename=filename)
-    msg.attach(attachment)
-
-    with smtplib.SMTP_SSL(config.SMTP_HOST, config.SMTP_PORT, timeout=20) as server:
-        server.login(config.SMTP_SENDER, config.SMTP_APP_PASSWORD)
-        server.sendmail(config.SMTP_SENDER, config.EMAIL_RECIPIENTS, msg.as_string())
-    return "sent"
+    subject = (f"Amazon shipment file — {project or 'shipment'} — AWB {awb} "
+               f"({summary.get('confirmed_orders', 0)} orders)")
+    return _deliver(subject, body, None, [{"filename": filename, "content": file_text}])
 
 
 def _table(red_counts, yellow_counts):
@@ -94,39 +139,19 @@ def _table(red_counts, yellow_counts):
 
 def send_counts_email(uploaded_lane, red_count, yellow_count,
                       red_lane_counts, yellow_lane_counts,
-                      red_history_total=None, red_history_added=None,
-                      assignee=None):
-    """
-    Returns a short status string: 'sent', 'disabled', or 'not-configured'.
-    Raises on an actual SMTP failure so the caller can show the error.
-
-    red_history_total / red_history_added (optional): the lane's cumulative
-    overdue-on-record count and how many were newly added this upload.
-    assignee (optional): the username of whoever uploaded the report.
-    """
-    if not config.EMAIL_ENABLED:
-        return "disabled"
-    if not (config.SMTP_SENDER and config.SMTP_APP_PASSWORD and config.EMAIL_RECIPIENTS):
-        return "not-configured"
-
+                      red_history_total=None, red_history_added=None, assignee=None):
+    """Per-lane count report. Returns 'sent' | 'disabled' | 'not-configured'."""
     rows, total_red, total_yellow = _table(red_lane_counts, yellow_lane_counts)
 
     assignee_html = ""
     if assignee:
-        assignee_html = (
-            f'<p style="margin:0 0 4px;color:#555">'
-            f'Lane <b>{uploaded_lane}</b> &nbsp;·&nbsp; '
-            f'Assignee <b>{assignee}</b></p>'
-        )
-
+        assignee_html = (f'<p style="margin:0 0 4px;color:#555">Lane <b>{uploaded_lane}</b>'
+                         f' &nbsp;·&nbsp; Assignee <b>{assignee}</b></p>')
     history_line = ""
     if red_history_total is not None:
         added = f" (+{red_history_added} new)" if red_history_added else ""
-        history_line = (
-            f'<p style="margin:0 0 16px;color:#555">'
-            f'On record for this lane (all overdue ever): '
-            f'<b>{red_history_total}</b>{added}.</p>'
-        )
+        history_line = (f'<p style="margin:0 0 16px;color:#555">On record for this lane '
+                        f'(all overdue ever): <b>{red_history_total}</b>{added}.</p>')
 
     html = f"""\
 <div style="font-family:Arial,Helvetica,sans-serif;color:#222">
@@ -157,40 +182,18 @@ def send_counts_email(uploaded_lane, red_count, yellow_count,
       </tr>
     </tbody>
   </table>
-  <p style="margin:16px 0 0;color:#999;font-size:12px">
-     Counts reflect the current contents of each lane tab.
-  </p>
 </div>"""
 
     text_history = ""
     if red_history_total is not None:
         added = f" (+{red_history_added} new)" if red_history_added else ""
-        text_history = (
-            f" On record for this lane (all overdue ever): "
-            f"{red_history_total}{added}."
-        )
+        text_history = f" On record for this lane (all overdue ever): {red_history_total}{added}."
     assignee_text = f" Assignee: {assignee}." if assignee else ""
-    text = (
-        f"Shipping Queue update — {uploaded_lane}:{assignee_text} "
-        f"{red_count} red (overdue, still not shipped), "
-        f"{yellow_count} yellow (due today, not shipped)."
-        f"{text_history}"
-        f" Totals across all lanes: {total_red} red, {total_yellow} yellow."
-    )
+    text = (f"Shipping Queue update — {uploaded_lane}:{assignee_text} "
+            f"{red_count} red (overdue, still not shipped), "
+            f"{yellow_count} yellow (due today, not shipped).{text_history} "
+            f"Totals across all lanes: {total_red} red, {total_yellow} yellow.")
 
-    msg = MIMEMultipart("alternative")
     who = f" · {assignee}" if assignee else ""
-    msg["Subject"] = (
-        f"Shipping Queue — {uploaded_lane}{who}: "
-        f"{red_count} red / {yellow_count} yellow"
-    )
-    msg["From"] = config.SMTP_SENDER
-    msg["To"] = ", ".join(config.EMAIL_RECIPIENTS)
-    msg.attach(MIMEText(text, "plain"))
-    msg.attach(MIMEText(html, "html"))
-
-    with smtplib.SMTP_SSL(config.SMTP_HOST, config.SMTP_PORT, timeout=20) as server:
-        server.login(config.SMTP_SENDER, config.SMTP_APP_PASSWORD)
-        server.sendmail(config.SMTP_SENDER, config.EMAIL_RECIPIENTS, msg.as_string())
-
-    return "sent"
+    subject = f"Shipping Queue — {uploaded_lane}{who}: {red_count} red / {yellow_count} yellow"
+    return _deliver(subject, text, html)

@@ -412,10 +412,13 @@ def settings_config():
         "EMAIL_ENABLED": f.get("email_enabled") == "on",
         "SMTP_SENDER": f.get("sender", "").strip(),
         "EMAIL_RECIPIENTS": _multi("recipients"),
+        "EMAIL_FROM": f.get("email_from", "").strip(),
     }
-    # Blank app-password field means "keep the existing one".
+    # Blank secret fields mean "keep the existing one".
     if f.get("app_password", "").strip():
         updates["SMTP_APP_PASSWORD"] = f.get("app_password").strip()
+    if f.get("resend_api_key", "").strip():
+        updates["RESEND_API_KEY"] = f.get("resend_api_key").strip()
     # Clicking "send test" means you want email on — enable it regardless of the tick.
     if f.get("_action") == "test":
         updates["EMAIL_ENABLED"] = True

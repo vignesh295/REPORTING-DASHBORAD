@@ -123,27 +123,40 @@
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>
           Email notifications
         </h2>
-        <p>Gmail + an App Password. The count email is sent to the recipients after each upload.</p>
+        <p>Uses Resend (HTTPS) when set — recommended, since Render blocks SMTP. Gmail SMTP is a fallback.</p>
       </div>
       <div class="card-body">
         <div class="grp">
           <label class="check"><input type="checkbox" name="email_enabled" {{ 'checked' if cfg.EMAIL_ENABLED }}> Send the count email after each upload</label>
         </div>
+        <div class="grp">
+          <label for="recipients">Recipients</label>
+          <textarea id="recipients" name="recipients" style="min-height:60px">{{ cfg.EMAIL_RECIPIENTS | join('\n') }}</textarea>
+          <span class="hint">One address per line (or comma-separated).</span>
+        </div>
+
+        <div class="row2" style="margin-top:4px;">
+          <div class="grp">
+            <label for="email_from">From address <span style="color:var(--brand-ink)">(Resend)</span></label>
+            <input type="text" id="email_from" name="email_from" value="{{ cfg.EMAIL_FROM }}" placeholder="onboarding@resend.dev">
+          </div>
+          <div class="grp">
+            <label for="resend_api_key">Resend API key</label>
+            <input type="password" id="resend_api_key" name="resend_api_key" value="" placeholder="{{ 're_•••• (set — blank to keep)' if cfg.RESEND_API_KEY else 're_…' }}">
+            <span class="hint">Recommended. Sends over HTTPS. Blank = keep current.</span>
+          </div>
+        </div>
+
         <div class="row2">
           <div class="grp">
-            <label for="sender">Sender (Gmail address)</label>
+            <label for="sender">Gmail sender <span class="muted">(SMTP fallback)</span></label>
             <input type="text" id="sender" name="sender" value="{{ cfg.SMTP_SENDER }}" placeholder="ops@gmail.com">
           </div>
           <div class="grp">
-            <label for="app_password">App password</label>
-            <input type="password" id="app_password" name="app_password" value="" placeholder="{{ '•••••••••• (set — leave blank to keep)' if cfg.SMTP_APP_PASSWORD else '16-character app password' }}">
-            <span class="hint">Leave blank to keep the current one.</span>
+            <label for="app_password">Gmail app password</label>
+            <input type="password" id="app_password" name="app_password" value="" placeholder="{{ '•••• (set — blank to keep)' if cfg.SMTP_APP_PASSWORD else '16-char app password' }}">
+            <span class="hint">Only used if no Resend key. Blank = keep.</span>
           </div>
-        </div>
-        <div class="grp">
-          <label for="recipients">Recipients</label>
-          <textarea id="recipients" name="recipients" style="min-height:70px">{{ cfg.EMAIL_RECIPIENTS | join('\n') }}</textarea>
-          <span class="hint">One address per line (or comma-separated).</span>
         </div>
       </div>
       <div class="card-foot" style="gap:10px;">
