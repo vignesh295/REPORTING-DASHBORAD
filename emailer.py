@@ -33,7 +33,7 @@ def send_test_email():
     msg.attach(MIMEText(text, "plain"))
     msg.attach(MIMEText(html, "html"))
 
-    with smtplib.SMTP_SSL(config.SMTP_HOST, config.SMTP_PORT) as server:
+    with smtplib.SMTP_SSL(config.SMTP_HOST, config.SMTP_PORT, timeout=20) as server:
         server.login(config.SMTP_SENDER, config.SMTP_APP_PASSWORD)
         server.sendmail(config.SMTP_SENDER, config.EMAIL_RECIPIENTS, msg.as_string())
     return "sent"
@@ -67,7 +67,7 @@ def send_amazon_file(awb, project, file_text, filename, summary):
     attachment.add_header("Content-Disposition", "attachment", filename=filename)
     msg.attach(attachment)
 
-    with smtplib.SMTP_SSL(config.SMTP_HOST, config.SMTP_PORT) as server:
+    with smtplib.SMTP_SSL(config.SMTP_HOST, config.SMTP_PORT, timeout=20) as server:
         server.login(config.SMTP_SENDER, config.SMTP_APP_PASSWORD)
         server.sendmail(config.SMTP_SENDER, config.EMAIL_RECIPIENTS, msg.as_string())
     return "sent"
@@ -189,7 +189,7 @@ def send_counts_email(uploaded_lane, red_count, yellow_count,
     msg.attach(MIMEText(text, "plain"))
     msg.attach(MIMEText(html, "html"))
 
-    with smtplib.SMTP_SSL(config.SMTP_HOST, config.SMTP_PORT) as server:
+    with smtplib.SMTP_SSL(config.SMTP_HOST, config.SMTP_PORT, timeout=20) as server:
         server.login(config.SMTP_SENDER, config.SMTP_APP_PASSWORD)
         server.sendmail(config.SMTP_SENDER, config.EMAIL_RECIPIENTS, msg.as_string())
 

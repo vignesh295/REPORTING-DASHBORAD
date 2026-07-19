@@ -419,7 +419,12 @@ def settings_config():
     # Clicking "send test" means you want email on — enable it regardless of the tick.
     if f.get("_action") == "test":
         updates["EMAIL_ENABLED"] = True
-    config.save_settings(updates)
+    try:
+        config.save_settings(updates)
+    except Exception as e:  # noqa: BLE001
+        traceback.print_exc()
+        flash(f"Couldn't save settings: {e}", "error")
+        return redirect(url_for("settings"))
 
     # "Send test email" saves first (so the toggle + creds take effect), then sends.
     if f.get("_action") == "test":
