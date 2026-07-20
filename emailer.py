@@ -105,6 +105,45 @@ def send_test_email():
     return _deliver("Trishoolin Ops — test email (system is working)", text, html)
 
 
+def send_daily_summary(rows, totals, date_label=""):
+    """End-of-day per-lane red/yellow summary email. `rows` = list of dicts with
+    lane, red_today, yellow_today (from store.dashboard_rows())."""
+    trs = ""
+    for r in rows:
+        red, yel = r.get("red_today", 0), r.get("yellow_today", 0)
+        rbg = "#ffd9d9" if red else "#f7f7f7"
+        ybg = "#fff2c2" if yel else "#f7f7f7"
+        trs += (f"<tr><td style='padding:6px 12px;border:1px solid #ddd'>{r.get('lane','')}</td>"
+                f"<td style='padding:6px 12px;border:1px solid #ddd;text-align:center;background:{rbg}'>{red}</td>"
+                f"<td style='padding:6px 12px;border:1px solid #ddd;text-align:center;background:{ybg}'>{yel}</td></tr>")
+    html = f"""<div style="font-family:Arial,Helvetica,sans-serif;color:#222">
+  <h2 style="margin:0 0 4px">End-of-day shipping summary{(' — ' + date_label) if date_label else ''}</h2>
+  <p style="color:#555;margin:0 0 14px">Red = should have shipped yesterday and still hasn't ·
+     Yellow = due to ship today.</p>
+  <table style="border-collapse:collapse;font-size:14px">
+    <thead><tr style="background:#f2f2f2">
+      <th style="padding:6px 12px;border:1px solid #ddd;text-align:left">Lane</th>
+      <th style="padding:6px 12px;border:1px solid #ddd">Red / OVERDUE</th>
+      <th style="padding:6px 12px;border:1px solid #ddd">Yellow / TODAY</th>
+    </tr></thead>
+    <tbody>{trs}
+      <tr style="font-weight:bold;background:#fafafa">
+        <td style="padding:6px 12px;border:1px solid #ddd">TOTAL</td>
+        <td style="padding:6px 12px;border:1px solid #ddd;text-align:center">{totals.get('red_today',0)}</td>
+        <td style="padding:6px 12px;border:1px solid #ddd;text-align:center">{totals.get('yellow_today',0)}</td>
+      </tr>
+    </tbody>
+  </table>
+</div>"""
+    lines = "\n".join(f"  {r.get('lane','')}: {r.get('red_today',0)} red, {r.get('yellow_today',0)} yellow"
+                      for r in rows)
+    text = (f"End-of-day shipping summary{(' — ' + date_label) if date_label else ''}\n\n{lines}\n\n"
+            f"TOTAL: {totals.get('red_today',0)} red, {totals.get('yellow_today',0)} yellow.")
+    subject = (f"Daily shipping summary{(' — ' + date_label) if date_label else ''}: "
+               f"{totals.get('red_today',0)} red / {totals.get('yellow_today',0)} yellow")
+    return _deliver(subject, text, html)
+
+
 def send_amazon_file(awb, project, file_text, filename, summary):
     """Email the Amazon shipment-confirmation file (tab-separated) as an attachment."""
     cancelled = summary.get("cancelled_orders", [])

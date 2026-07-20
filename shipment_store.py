@@ -15,7 +15,7 @@ import config
 import db
 
 _KEY = "shipment"
-_DEFAULT = {"manifests": {}, "unshipped": {}, "files": [], "generated": {}}
+_DEFAULT = {"manifests": {}, "unshipped": {}, "files": [], "generated": {}, "delivered": {}}
 
 
 def _now():
@@ -27,6 +27,7 @@ def _defaults(data):
     data.setdefault("unshipped", {})
     data.setdefault("files", [])
     data.setdefault("generated", {})
+    data.setdefault("delivered", {})
     return data
 
 
@@ -117,3 +118,21 @@ def save_generated(key, file_text, summary, filename):
 
 def get_generated(key):
     return _load()["generated"].get(key)
+
+
+# ---- Delivered AWBs (from the AWB sheet poll) ------------------------------
+def set_delivered(awb, dest="", delivered_date=""):
+    awb = str(awb).strip()
+    if not awb:
+        return
+    data = _load()
+    rec = data["delivered"].get(awb, {})
+    rec.update({"dest": dest or rec.get("dest", ""),
+                "delivered_date": delivered_date or rec.get("delivered_date", ""),
+                "seen": _now()})
+    data["delivered"][awb] = rec
+    _save(data)
+
+
+def delivered():
+    return _load()["delivered"]

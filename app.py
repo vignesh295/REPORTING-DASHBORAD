@@ -244,6 +244,28 @@ def api_shipment_notify():
         return jsonify(ok=False, error=str(e)), 500
 
 
+@app.route("/cron/daily-summary", methods=["GET", "POST"])
+def cron_daily_summary():
+    """End-of-day: email the per-lane red/yellow summary. Schedule for ~7pm."""
+    err = _api_token_error()
+    if err:
+        return jsonify(ok=False, error=err[0]), err[1]
+    import automation
+    import datetime
+    return jsonify(ok=True, **automation.daily_summary(datetime.date.today().strftime("%d.%m.%Y")))
+
+
+@app.route("/cron/process-deliveries", methods=["GET", "POST"])
+def cron_process_deliveries():
+    """Pull new Drive files, read the AWB sheet for delivered AWBs, and generate
+    + email the Amazon file for any that are ready. Schedule every ~15-30 min."""
+    err = _api_token_error()
+    if err:
+        return jsonify(ok=False, error=err[0]), err[1]
+    import automation
+    return jsonify(ok=True, **automation.process_deliveries())
+
+
 @app.route("/buy-ship-left")
 @auth.role_required("admin")
 def buy_ship_left():
