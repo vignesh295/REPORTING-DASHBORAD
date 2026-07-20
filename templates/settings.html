@@ -73,7 +73,13 @@
   <div class="page-head"><h1>Settings</h1><p>Configure Google Sheets &amp; email, manage lanes, and manage users.</p></div>
 
   <!-- ===== App configuration ===== -->
-  <form method="post" action="{{ url_for('settings_config') }}">
+  <form method="post" action="{{ url_for('settings_config') }}" autocomplete="off">
+    {# decoy fields the browser's password manager autofills instead of the real
+       ones below (off-screen, not display:none, so autofill still targets them) #}
+    <input type="text" name="_afu" autocomplete="username" tabindex="-1" aria-hidden="true"
+           style="position:absolute;left:-9999px;top:-9999px;height:0;width:0;opacity:0">
+    <input type="password" name="_afp" autocomplete="new-password" tabindex="-1" aria-hidden="true"
+           style="position:absolute;left:-9999px;top:-9999px;height:0;width:0;opacity:0">
     <div class="card">
       <div class="card-head">
         <h2>
@@ -170,7 +176,7 @@
         </div>
         <div class="grp">
           <label for="email_from">From address</label>
-          <input type="text" id="email_from" name="email_from" value="{{ cfg.EMAIL_FROM }}" placeholder="you@yourbusiness.com">
+          <input type="text" id="email_from" name="email_from" value="{{ cfg.EMAIL_FROM }}" placeholder="you@yourbusiness.com" autocomplete="off" data-1p-ignore data-lpignore="true" data-form-type="other">
           <span class="hint">The address mail is sent as. Gmail API &rarr; your own Google address. Brevo &rarr; your verified inbox. Resend test &rarr; onboarding@resend.dev.</span>
         </div>
 
@@ -178,16 +184,16 @@
         <div class="row2">
           <div class="grp">
             <label for="gmail_client_id">OAuth client ID</label>
-            <input type="text" id="gmail_client_id" name="gmail_client_id" value="{{ cfg.GMAIL_CLIENT_ID }}" placeholder="…apps.googleusercontent.com">
+            <input type="text" id="gmail_client_id" name="gmail_client_id" value="{{ cfg.GMAIL_CLIENT_ID }}" placeholder="…apps.googleusercontent.com" autocomplete="off" data-1p-ignore data-lpignore="true" data-form-type="other">
           </div>
           <div class="grp">
             <label for="gmail_client_secret">OAuth client secret</label>
-            <input type="password" id="gmail_client_secret" name="gmail_client_secret" value="" placeholder="{{ '•••• (set — blank to keep)' if cfg.GMAIL_CLIENT_SECRET else 'GOCSPX-…' }}">
+            <input type="password" id="gmail_client_secret" name="gmail_client_secret" value="" placeholder="{{ '•••• (set — blank to keep)' if cfg.GMAIL_CLIENT_SECRET else 'GOCSPX-…' }}" autocomplete="new-password" data-1p-ignore data-lpignore="true" data-form-type="other">
           </div>
         </div>
         <div class="grp">
           <label for="gmail_refresh_token">OAuth refresh token</label>
-          <input type="password" id="gmail_refresh_token" name="gmail_refresh_token" value="" placeholder="{{ '•••• (set — blank to keep)' if cfg.GMAIL_REFRESH_TOKEN else '1//…' }}">
+          <input type="password" id="gmail_refresh_token" name="gmail_refresh_token" value="" placeholder="{{ '•••• (set — blank to keep)' if cfg.GMAIL_REFRESH_TOKEN else '1//…' }}" autocomplete="new-password" data-1p-ignore data-lpignore="true" data-form-type="other">
           <span class="hint">One-time setup via Google Cloud + the OAuth Playground (set the app's user type to <b>Internal</b> so the token never expires). Blank = keep current. Filling all three makes Gmail the sender — clear the Client ID to switch back to Brevo/Resend.</span>
         </div>
 
@@ -195,12 +201,12 @@
         <div class="row2">
           <div class="grp">
             <label for="brevo_api_key">Brevo API key</label>
-            <input type="password" id="brevo_api_key" name="brevo_api_key" value="" placeholder="{{ 'xkeysib-•••• (set — blank to keep)' if cfg.BREVO_API_KEY else 'xkeysib-…' }}">
+            <input type="password" id="brevo_api_key" name="brevo_api_key" value="" placeholder="{{ 'xkeysib-•••• (set — blank to keep)' if cfg.BREVO_API_KEY else 'xkeysib-…' }}" autocomplete="new-password" data-1p-ignore data-lpignore="true" data-form-type="other">
             <span class="hint">Verify one inbox, email anyone. Blank = keep.</span>
           </div>
           <div class="grp">
             <label for="resend_api_key">Resend API key <span class="muted">(needs a verified domain)</span></label>
-            <input type="password" id="resend_api_key" name="resend_api_key" value="" placeholder="{{ 're_•••• (set — blank to keep)' if cfg.RESEND_API_KEY else 're_…' }}">
+            <input type="password" id="resend_api_key" name="resend_api_key" value="" placeholder="{{ 're_•••• (set — blank to keep)' if cfg.RESEND_API_KEY else 're_…' }}" autocomplete="new-password" data-1p-ignore data-lpignore="true" data-form-type="other">
             <span class="hint">Only used if no Gmail/Brevo. Blank = keep.</span>
           </div>
         </div>
@@ -209,11 +215,11 @@
         <div class="row2">
           <div class="grp">
             <label for="sender">Gmail sender</label>
-            <input type="text" id="sender" name="sender" value="{{ cfg.SMTP_SENDER }}" placeholder="ops@gmail.com">
+            <input type="text" id="sender" name="sender" value="{{ cfg.SMTP_SENDER }}" placeholder="ops@gmail.com" autocomplete="off" data-1p-ignore data-lpignore="true" data-form-type="other">
           </div>
           <div class="grp">
             <label for="app_password">Gmail app password</label>
-            <input type="password" id="app_password" name="app_password" value="" placeholder="{{ '•••• (set — blank to keep)' if cfg.SMTP_APP_PASSWORD else '16-char app password' }}">
+            <input type="password" id="app_password" name="app_password" value="" placeholder="{{ '•••• (set — blank to keep)' if cfg.SMTP_APP_PASSWORD else '16-char app password' }}" autocomplete="new-password" data-1p-ignore data-lpignore="true" data-form-type="other">
             <span class="hint">Only used if no Gmail API/Brevo/Resend. Blank = keep.</span>
           </div>
         </div>
