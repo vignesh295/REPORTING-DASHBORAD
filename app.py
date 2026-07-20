@@ -435,6 +435,8 @@ def settings_config():
         "SMTP_SENDER": f.get("sender", "").strip(),
         "EMAIL_RECIPIENTS": _multi("recipients"),
         "EMAIL_FROM": f.get("email_from", "").strip(),
+        "DRIVE_FOLDER_ID": f.get("drive_folder_id", "").strip(),
+        "AWB_SHEET_ID": f.get("awb_sheet_id", "").strip(),
     }
     # Blank secret fields mean "keep the existing one".
     if f.get("app_password", "").strip():
