@@ -7,6 +7,7 @@ Scheduled automation (run by the /cron/* endpoints).
                           manifest + the project's unshipped report, generate the
                           Amazon shipment-confirmation file and email it (once).
 """
+import datetime
 import os
 import tempfile
 import traceback
@@ -177,6 +178,23 @@ def _row_get(row, *names):
     return ""
 
 
+_DATE_FORMATS = ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d", "%d.%m.%Y", "%d/%m/%Y")
+
+
+def _parse_date(s):
+    """Parse the assorted date strings the manifests carry (ISO, dd.mm.yyyy) to a
+    date for comparison. Returns None for blanks / '0' / unrecognised formats."""
+    s = str(s).strip()
+    if not s or s in ("0", "0.0"):
+        return None
+    for fmt in _DATE_FORMATS:
+        try:
+            return datetime.datetime.strptime(s, fmt).date()
+        except ValueError:
+            continue
+    return None
+
+
 def _log_records(idx):
     """Build one SHIPMENT LOGS row per stored manifest, enriched with the AWB
     sheet's status/route and whether the Amazon file has been generated."""
@@ -186,12 +204,26 @@ def _log_records(idx):
         oids = {_row_get(r, "ORDER ID", "order-id") for r in rows}
         oids.discard("")
         n_orders = len(oids) or len(rows)
-        last_ship = ""
+        # AWB SHIP DATE = the batch's AWB CREATION DATE (same on every row)
+        awb_ship = ""
         for r in rows:
-            v = _row_get(r, "LAST SHIP DATE", "last ship date", "last-ship-date")
+            v = _row_get(r, "AWB CREATION DATE", "awb creation date")
             if v and v not in ("0", "0.0"):
-                last_ship = v
+                awb_ship = v
                 break
+        # last ship date = the EARLIEST last-ship-date across the batch's orders
+        dated = [(d, v) for r in rows
+                 for v in [_row_get(r, "LAST SHIP DATE", "last ship date", "last-ship-date")]
+                 for d in [_parse_date(v)] if d]
+        if dated:
+            last_ship = min(dated, key=lambda x: x[0])[1]
+        else:
+            last_ship = ""
+            for r in rows:
+                v = _row_get(r, "LAST SHIP DATE", "last ship date", "last-ship-date")
+                if v and v not in ("0", "0.0"):
+                    last_ship = v
+                    break
         info = idx.get(awb, {})
         if shipment_store.get_generated(awb):
             update_status = "Amazon file generated"
@@ -201,12 +233,12 @@ def _log_records(idx):
             update_status = "Awaiting delivery"
         records.append({
             "project": info.get("tab") or m.get("project") or "",
+            "AWB SHIP DATE": awb_ship,
             "awb": awb,
             "number of orders": n_orders,
             "awb status": info.get("status", ""),
             "last ship date": last_ship,
             "shipment update status": update_status,
-            "link": "",
         })
     return records
 

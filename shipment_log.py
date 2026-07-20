@@ -10,7 +10,7 @@ existing row in place instead of appending duplicates.
 import config
 import sheets
 
-HEADERS = ["project", "awb", "number of orders", "awb status",
+HEADERS = ["project", "AWB SHIP DATE", "awb", "number of orders", "awb status",
            "last ship date", "shipment update status", "link"]
 
 
@@ -70,18 +70,28 @@ def upsert(records):
     end = _col_letter(ncols)
     hkeys = [_nh(h) for h in header]
 
-    def build_row(rec):
+    def build_row(rec, existing):
+        # Write only the columns this record manages; keep every other column
+        # (a user-added 'action', or 'link' until we fill it) exactly as it was.
         rn = {_nh(k): v for k, v in rec.items()}
-        return ["" if rn.get(h) is None else str(rn.get(h, "")) for h in hkeys]
+        base = list(existing) + [""] * ncols
+        out = []
+        for i, h in enumerate(hkeys):
+            if h in rn:
+                v = rn[h]
+                out.append("" if v is None else str(v))
+            else:
+                out.append(base[i])
+        return out
 
     updates, appends = [], []
     for awb, rec in by_awb.items():
-        row_vals = build_row(rec)
         if awb in row_of:
             rn = row_of[awb]
-            updates.append({"range": f"A{rn}:{end}{rn}", "values": [row_vals]})
+            existing = values[rn - 1] if rn - 1 < len(values) else []
+            updates.append({"range": f"A{rn}:{end}{rn}", "values": [build_row(rec, existing)]})
         else:
-            appends.append(row_vals)
+            appends.append(build_row(rec, []))
 
     if updates:
         ws.batch_update(updates, value_input_option="RAW")
