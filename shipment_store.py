@@ -48,8 +48,11 @@ def _save(data):
     if db.enabled():
         db.kv_set(_KEY, data)
         return
+    # Serialise fully first: if anything is non-serialisable this raises BEFORE we
+    # open/truncate the file, so a bad value can never half-write and corrupt it.
+    payload = json.dumps(data, indent=2, ensure_ascii=False)
     with open(config.SHIPMENT_STORE_FILE, "w") as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
+        f.write(payload)
 
 
 # ---- Drive-file dedup ------------------------------------------------------

@@ -42,7 +42,16 @@ def lane_from_sku(sku):
 
 
 def _clean(v):
-    return "" if v is None else str(v).strip()
+    """Coerce a spreadsheet cell to a clean, JSON-safe string.
+    xlsx cells arrive as native types — dates as datetime (not JSON-serialisable),
+    whole numbers as float (1.0) — so normalise them here at the source."""
+    if v is None:
+        return ""
+    if isinstance(v, bool):
+        return str(v)
+    if isinstance(v, float) and v.is_integer():
+        return str(int(v))          # 1.0 -> "1"; avoids scientific notation too
+    return str(v).strip()
 
 
 def read_table(path):
@@ -73,7 +82,7 @@ def read_table(path):
     for raw in grid[1:]:
         if not any(_clean(c) for c in raw):
             continue
-        rows.append({headers[i]: raw[i] for i in range(min(len(headers), len(raw)))})
+        rows.append({headers[i]: _clean(raw[i]) for i in range(min(len(headers), len(raw)))})
     return headers, rows
 
 

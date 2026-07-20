@@ -35,6 +35,35 @@ def _parse_filename(name):
     return "", ""
 
 
+def _norm(v):
+    """Trim whitespace and stray trailing commas the AWB sheet/manifests carry."""
+    return str(v).strip().strip(",").strip()
+
+
+def _awb_column(headers):
+    """The header that holds the batch AWB in a manifest (case-insensitive)."""
+    for h in headers:
+        if str(h).strip().upper() == "AWB":
+            return h
+    return None
+
+
+def _group_by_awb(headers, rows):
+    """Group manifest rows by their AWB-column value. Returns {awb: [rows]}.
+    Filenames don't reliably carry the AWB, but every manifest row does — and a
+    single file can hold several batches, so we split by the real column."""
+    col = _awb_column(headers)
+    if not col:
+        return {}
+    groups = {}
+    for r in rows:
+        a = _norm(r.get(col, ""))
+        if not a or a.upper() in ("AWB", "MASTER AWB"):
+            continue
+        groups.setdefault(a, []).append(r)
+    return groups
+
+
 # ---------------------------------------------------------------------------
 # Daily summary
 # ---------------------------------------------------------------------------
@@ -62,14 +91,22 @@ def _sync_drive(report):
             tmp.write(raw)
             tmp.close()
             try:
-                _h, rows = shipment_core.read_table(tmp.name)
+                headers, rows = shipment_core.read_table(tmp.name)
             finally:
                 try:
                     os.unlink(tmp.name)
                 except OSError:
                     pass
-            project, awb = _parse_filename(f["name"])
-            shipment_store.store_manifest(awb, project, rows, f["id"], f["name"])
+            project, fname_awb = _parse_filename(f["name"])
+            groups = _group_by_awb(headers, rows)
+            if groups:
+                # one manifest per real AWB in the file (a file may hold several)
+                for awb, grp in groups.items():
+                    shipment_store.store_manifest(awb, project, grp, f["id"], f["name"])
+                report["awbs_ingested"] = report.get("awbs_ingested", 0) + len(groups)
+            else:
+                # no AWB column — fall back to the filename AWB so nothing is lost
+                shipment_store.store_manifest(fname_awb, project, rows, f["id"], f["name"])
             report["files_pulled"] += 1
         except Exception as e:  # noqa: BLE001
             traceback.print_exc()
@@ -98,11 +135,13 @@ def _poll_awb_deliveries(report):
         pi = H.index("PROJECT NAME") if "PROJECT NAME" in H else -1
         di = H.index("DELIVERED DATE") if "DELIVERED DATE" in H else -1
         for r in vals[1:]:
-            awb = str(r[ai]).strip() if ai < len(r) else ""
-            status = str(r[si]).strip() if si < len(r) else ""
-            if awb and "deliver" in status.lower():
+            awb = _norm(r[ai]) if ai < len(r) else ""
+            status = _norm(r[si]) if si < len(r) else ""
+            if not awb or awb.upper() == "MASTER AWB":  # skip blanks + repeated headers
+                continue
+            if "deliver" in status.lower():
                 dest = _dest(r[pi] if 0 <= pi < len(r) else ws.title)
-                dd = str(r[di]) if 0 <= di < len(r) else ""
+                dd = _norm(r[di]) if 0 <= di < len(r) else ""
                 shipment_store.set_delivered(awb, dest, dd)
                 report["delivered_seen"] += 1
 
@@ -134,8 +173,8 @@ def _process_ready(report):
 
 
 def process_deliveries():
-    report = {"files_pulled": 0, "delivered_seen": 0, "generated": [],
-              "waiting": [], "errors": []}
+    report = {"files_pulled": 0, "awbs_ingested": 0, "delivered_seen": 0,
+              "generated": [], "waiting": [], "errors": []}
     try:
         _sync_drive(report)
     except Exception as e:  # noqa: BLE001
