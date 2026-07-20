@@ -111,13 +111,16 @@ EMAIL_RECIPIENTS = []
 # for testing, or an address on your verified domain).
 RESEND_API_KEY = ""
 EMAIL_FROM = ""
+# Brevo HTTP email API — uses single-sender verification (verify your own inbox,
+# no domain DNS needed), so you can send to any recipient. Preferred when set.
+BREVO_API_KEY = ""
 
 # Keys the Settings page is allowed to write.
 EDITABLE_KEYS = (
     "RED_SPREADSHEET_ID", "YELLOW_SPREADSHEET_ID", "LANES",
     "EMAIL_ENABLED", "SMTP_SENDER", "SMTP_APP_PASSWORD", "EMAIL_RECIPIENTS",
     "AWB_API_TOKEN", "DRIVE_FOLDER_ID", "AWB_SHEET_ID",
-    "RESEND_API_KEY", "EMAIL_FROM",
+    "RESEND_API_KEY", "EMAIL_FROM", "BREVO_API_KEY",
 )
 
 
@@ -126,9 +129,11 @@ def reload():
     global RED_SPREADSHEET_ID, YELLOW_SPREADSHEET_ID, LANES
     global EMAIL_ENABLED, SMTP_SENDER, SMTP_APP_PASSWORD, EMAIL_RECIPIENTS
     global AWB_API_TOKEN, DRIVE_FOLDER_ID, AWB_SHEET_ID, RESEND_API_KEY, EMAIL_FROM
+    global BREVO_API_KEY
     s = _load_settings()
     RESEND_API_KEY = s["RESEND_API_KEY"] if "RESEND_API_KEY" in s else os.getenv("RESEND_API_KEY", "")
     EMAIL_FROM = s["EMAIL_FROM"] if "EMAIL_FROM" in s else os.getenv("EMAIL_FROM", "")
+    BREVO_API_KEY = s["BREVO_API_KEY"] if "BREVO_API_KEY" in s else os.getenv("BREVO_API_KEY", "")
     AWB_API_TOKEN = s["AWB_API_TOKEN"] if "AWB_API_TOKEN" in s else os.getenv("AWB_API_TOKEN", "")
     DRIVE_FOLDER_ID = s["DRIVE_FOLDER_ID"] if "DRIVE_FOLDER_ID" in s else os.getenv("DRIVE_FOLDER_ID", "")
     AWB_SHEET_ID = s["AWB_SHEET_ID"] if "AWB_SHEET_ID" in s else os.getenv("AWB_SHEET_ID", "")
@@ -178,6 +183,7 @@ def current_settings():
         "AWB_SHEET_ID": AWB_SHEET_ID,
         "RESEND_API_KEY": RESEND_API_KEY,
         "EMAIL_FROM": EMAIL_FROM,
+        "BREVO_API_KEY": BREVO_API_KEY,
     }
 
 
@@ -217,7 +223,8 @@ def google_ready():
 def email_ready():
     if not (EMAIL_ENABLED and EMAIL_RECIPIENTS):
         return False
-    return bool((RESEND_API_KEY and EMAIL_FROM) or (SMTP_SENDER and SMTP_APP_PASSWORD))
+    return bool((BREVO_API_KEY and EMAIL_FROM) or (RESEND_API_KEY and EMAIL_FROM)
+                or (SMTP_SENDER and SMTP_APP_PASSWORD))
 
 
 reload()

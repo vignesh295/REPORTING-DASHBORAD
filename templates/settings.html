@@ -146,7 +146,7 @@
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>
           Email notifications
         </h2>
-        <p>Uses Resend (HTTPS) when set — recommended, since Render blocks SMTP. Gmail SMTP is a fallback.</p>
+        <p>Sends over HTTPS (Render blocks SMTP). <b>Brevo</b> is preferred — verify just your own inbox and you can email anyone. Resend needs a verified domain; Gmail SMTP is a last-resort fallback.</p>
       </div>
       <div class="card-body">
         <div class="grp">
@@ -160,14 +160,24 @@
 
         <div class="row2" style="margin-top:4px;">
           <div class="grp">
-            <label for="email_from">From address <span style="color:var(--brand-ink)">(Resend)</span></label>
-            <input type="text" id="email_from" name="email_from" value="{{ cfg.EMAIL_FROM }}" placeholder="onboarding@resend.dev">
+            <label for="email_from">From address</label>
+            <input type="text" id="email_from" name="email_from" value="{{ cfg.EMAIL_FROM }}" placeholder="you@yourbusiness.com">
+            <span class="hint">The verified sender. For Brevo use the inbox you verified; for Resend testing use onboarding@resend.dev.</span>
           </div>
           <div class="grp">
-            <label for="resend_api_key">Resend API key</label>
-            <input type="password" id="resend_api_key" name="resend_api_key" value="" placeholder="{{ 're_•••• (set — blank to keep)' if cfg.RESEND_API_KEY else 're_…' }}">
-            <span class="hint">Recommended. Sends over HTTPS. Blank = keep current.</span>
+            <label for="brevo_api_key">Brevo API key <span style="color:var(--brand-ink)">(recommended)</span></label>
+            <input type="password" id="brevo_api_key" name="brevo_api_key" value="" placeholder="{{ 'xkeysib-•••• (set — blank to keep)' if cfg.BREVO_API_KEY else 'xkeysib-…' }}">
+            <span class="hint">Sends to anyone once you verify your sender email. Blank = keep current.</span>
           </div>
+        </div>
+
+        <div class="row2">
+          <div class="grp">
+            <label for="resend_api_key">Resend API key <span class="muted">(needs a verified domain)</span></label>
+            <input type="password" id="resend_api_key" name="resend_api_key" value="" placeholder="{{ 're_•••• (set — blank to keep)' if cfg.RESEND_API_KEY else 're_…' }}">
+            <span class="hint">Only used if no Brevo key. Blank = keep.</span>
+          </div>
+          <div class="grp"></div>
         </div>
 
         <div class="row2">
@@ -178,7 +188,7 @@
           <div class="grp">
             <label for="app_password">Gmail app password</label>
             <input type="password" id="app_password" name="app_password" value="" placeholder="{{ '•••• (set — blank to keep)' if cfg.SMTP_APP_PASSWORD else '16-char app password' }}">
-            <span class="hint">Only used if no Resend key. Blank = keep.</span>
+            <span class="hint">Only used if no Brevo/Resend key. Blank = keep.</span>
           </div>
         </div>
       </div>

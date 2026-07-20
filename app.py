@@ -443,6 +443,8 @@ def settings_config():
         updates["SMTP_APP_PASSWORD"] = f.get("app_password").strip()
     if f.get("resend_api_key", "").strip():
         updates["RESEND_API_KEY"] = f.get("resend_api_key").strip()
+    if f.get("brevo_api_key", "").strip():
+        updates["BREVO_API_KEY"] = f.get("brevo_api_key").strip()
     # Clicking "send test" means you want email on — enable it regardless of the tick.
     if f.get("_action") == "test":
         updates["EMAIL_ENABLED"] = True

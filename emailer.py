@@ -1,8 +1,13 @@
 """
-Email delivery. Uses the Resend HTTP API when configured (RESEND_API_KEY +
-EMAIL_FROM) — which works where outbound SMTP is blocked (e.g. Render) — and
-falls back to Gmail SMTP otherwise. Sends: the per-lane count report, the
-Amazon shipment-confirmation file, and a test email.
+Email delivery over HTTP (works where outbound SMTP is blocked, e.g. Render).
+Transport is chosen in this order:
+  1. Brevo   (BREVO_API_KEY + EMAIL_FROM) — single-sender verification, so it can
+     send to ANY recipient without owning/verifying a whole domain. Preferred.
+  2. Resend  (RESEND_API_KEY + EMAIL_FROM) — needs a verified domain to send to
+     recipients other than the account owner.
+  3. Gmail SMTP (SMTP_SENDER + SMTP_APP_PASSWORD) — fallback; blocked on Render.
+Sends: the per-lane count report, the Amazon shipment-confirmation file, the
+end-of-day summary, and a test email.
 """
 import base64
 import json
@@ -32,11 +37,44 @@ def _deliver(subject, text, html=None, attachments=None):
         return "disabled"
     if not config.EMAIL_RECIPIENTS:
         return "not-configured"
+    if config.BREVO_API_KEY and config.EMAIL_FROM:
+        return _deliver_brevo(subject, text, html, attachments)
     if config.RESEND_API_KEY and config.EMAIL_FROM:
         return _deliver_resend(subject, text, html, attachments)
     if config.SMTP_SENDER and config.SMTP_APP_PASSWORD:
         return _deliver_smtp(subject, text, html, attachments)
     return "not-configured"
+
+
+def _deliver_brevo(subject, text, html, attachments):
+    sender = {"email": config.EMAIL_FROM, "name": "Trishoolin Ops"}
+    payload = {"sender": sender,
+               "to": [{"email": r} for r in config.EMAIL_RECIPIENTS],
+               "subject": subject}
+    if html:
+        payload["htmlContent"] = html
+    if text:
+        payload["textContent"] = text
+    if not (html or text):
+        payload["textContent"] = subject
+    if attachments:
+        payload["attachment"] = [
+            {"name": a["filename"],
+             "content": base64.b64encode(a["content"].encode("utf-8")).decode("ascii")}
+            for a in attachments]
+    req = urllib.request.Request(
+        "https://api.brevo.com/v3/smtp/email", data=json.dumps(payload).encode("utf-8"),
+        headers={"api-key": config.BREVO_API_KEY,
+                 "Content-Type": "application/json", "Accept": "application/json",
+                 "User-Agent": "trishoolin-ops/1.0"})
+    try:
+        with urllib.request.urlopen(req, timeout=20, context=_SSL) as r:
+            resp = json.loads(r.read())
+    except urllib.error.HTTPError as e:
+        raise RuntimeError(f"Brevo {e.code}: {e.read().decode('utf-8', 'replace')}")
+    if resp.get("messageId") or resp.get("messageIds"):
+        return "sent"
+    raise RuntimeError("Brevo: " + json.dumps(resp))
 
 
 def _deliver_resend(subject, text, html, attachments):
