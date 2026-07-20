@@ -142,6 +142,11 @@
             <input class="mono" type="text" id="awb_sheet_id" name="awb_sheet_id" value="{{ cfg.AWB_SHEET_ID }}" placeholder="1KZA…U3OQ">
           </div>
         </div>
+        <div class="grp" style="margin-top:4px">
+          <label for="shipment_log_sheet_id">Shipment log sheet ID</label>
+          <input class="mono" type="text" id="shipment_log_sheet_id" name="shipment_log_sheet_id" value="{{ cfg.SHIPMENT_LOG_SHEET_ID }}" placeholder="1YCa…bgh-s">
+          <span class="hint">The "SHIPMENT LOGS" sheet — one row per AWB is written/updated here on each sync.</span>
+        </div>
         <span class="hint">The long part of the URL — Drive <span class="mono">/folders/&lt;ID&gt;</span>, Sheet <span class="mono">/spreadsheets/d/&lt;ID&gt;</span>.</span>
       </div>
     </div>

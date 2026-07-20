@@ -113,9 +113,13 @@ def _sync_drive(report):
             report["errors"].append(f"pull {f.get('name')}: {e}")
 
 
-def _poll_awb_deliveries(report):
+def _awb_index():
+    """Read the AWB sheet ONCE -> {awb: {status, tab, delivered(bool), delivered_date}}.
+    Skips ADMIN / LANE CONFIG / SHIPPED / FBA tabs and repeated 'MASTER AWB' header
+    rows. Shared by delivery-polling and the shipment log so we read the sheet once."""
+    idx = {}
     if not (config.AWB_SHEET_ID and config.has_service_account()):
-        return
+        return idx
     import sheets
     sh = sheets.client().open_by_key(config.AWB_SHEET_ID)
     for ws in sh.worksheets():
@@ -136,14 +140,84 @@ def _poll_awb_deliveries(report):
         di = H.index("DELIVERED DATE") if "DELIVERED DATE" in H else -1
         for r in vals[1:]:
             awb = _norm(r[ai]) if ai < len(r) else ""
-            status = _norm(r[si]) if si < len(r) else ""
             if not awb or awb.upper() == "MASTER AWB":  # skip blanks + repeated headers
                 continue
-            if "deliver" in status.lower():
-                dest = _dest(r[pi] if 0 <= pi < len(r) else ws.title)
-                dd = _norm(r[di]) if 0 <= di < len(r) else ""
-                shipment_store.set_delivered(awb, dest, dd)
-                report["delivered_seen"] += 1
+            status = _norm(r[si]) if si < len(r) else ""
+            dd = _norm(r[di]) if 0 <= di < len(r) else ""
+            proj = _norm(r[pi]) if 0 <= pi < len(r) else ""
+            delivered = "deliver" in status.lower()
+            prev = idx.get(awb)
+            # delivery is monotonic: never let a later non-delivered row for the
+            # same AWB (e.g. a duplicate in another tab) overwrite a delivered one.
+            if prev and prev.get("delivered") and not delivered:
+                continue
+            idx[awb] = {"status": status, "tab": ws.title, "project": proj,
+                        "delivered": delivered,
+                        "delivered_date": dd or (prev or {}).get("delivered_date", "")}
+    return idx
+
+
+def _poll_awb_deliveries(report, idx):
+    for awb, info in idx.items():
+        if info.get("delivered"):
+            # prefer an explicit PROJECT NAME cell, fall back to the tab name
+            dest = _dest(info.get("project") or info.get("tab") or "")
+            shipment_store.set_delivered(awb, dest, info.get("delivered_date", ""))
+            report["delivered_seen"] += 1
+
+
+# ---------------------------------------------------------------------------
+# Shipment log sheet (one row per AWB)
+# ---------------------------------------------------------------------------
+def _row_get(row, *names):
+    low = {str(k).strip().lower(): v for k, v in row.items()}
+    for n in names:
+        if n.lower() in low:
+            return _norm(low[n.lower()])
+    return ""
+
+
+def _log_records(idx):
+    """Build one SHIPMENT LOGS row per stored manifest, enriched with the AWB
+    sheet's status/route and whether the Amazon file has been generated."""
+    records = []
+    for awb, m in shipment_store.manifests().items():
+        rows = m.get("rows", [])
+        oids = {_row_get(r, "ORDER ID", "order-id") for r in rows}
+        oids.discard("")
+        n_orders = len(oids) or len(rows)
+        last_ship = ""
+        for r in rows:
+            v = _row_get(r, "LAST SHIP DATE", "last ship date", "last-ship-date")
+            if v and v not in ("0", "0.0"):
+                last_ship = v
+                break
+        info = idx.get(awb, {})
+        if shipment_store.get_generated(awb):
+            update_status = "Amazon file generated"
+        elif info.get("delivered"):
+            update_status = "Delivered — processing"
+        else:
+            update_status = "Awaiting delivery"
+        records.append({
+            "project": info.get("tab") or m.get("project") or "",
+            "awb": awb,
+            "number of orders": n_orders,
+            "awb status": info.get("status", ""),
+            "last ship date": last_ship,
+            "shipment update status": update_status,
+            "link": "",
+        })
+    return records
+
+
+def _update_shipment_log(report, idx):
+    if not (config.SHIPMENT_LOG_SHEET_ID and config.has_service_account()):
+        return
+    import shipment_log
+    updated, added = shipment_log.upsert(_log_records(idx))
+    report["log_updated"] = updated
+    report["log_added"] = added
 
 
 def _process_ready(report):
@@ -174,16 +248,28 @@ def _process_ready(report):
 
 def process_deliveries():
     report = {"files_pulled": 0, "awbs_ingested": 0, "delivered_seen": 0,
+              "log_updated": 0, "log_added": 0,
               "generated": [], "waiting": [], "errors": []}
     try:
         _sync_drive(report)
     except Exception as e:  # noqa: BLE001
         traceback.print_exc()
         report["errors"].append(f"drive sync: {e}")
+    idx = {}
     try:
-        _poll_awb_deliveries(report)
+        idx = _awb_index()
+    except Exception as e:  # noqa: BLE001
+        traceback.print_exc()
+        report["errors"].append(f"awb index: {e}")
+    try:
+        _poll_awb_deliveries(report, idx)
     except Exception as e:  # noqa: BLE001
         traceback.print_exc()
         report["errors"].append(f"awb poll: {e}")
     _process_ready(report)
+    try:
+        _update_shipment_log(report, idx)
+    except Exception as e:  # noqa: BLE001
+        traceback.print_exc()
+        report["errors"].append(f"shipment log: {e}")
     return report

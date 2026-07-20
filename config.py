@@ -94,6 +94,7 @@ AWB_API_TOKEN = ""   # web-editable; set by reload()
 SHIPMENT_STORE_FILE = os.getenv("SHIPMENT_STORE_FILE", "shipment.json")
 DRIVE_FOLDER_ID = ""   # web-editable; the shared folder the manifests land in
 AWB_SHEET_ID = ""      # web-editable; the "ALL NEW COMBINED AWB REPORT" sheet
+SHIPMENT_LOG_SHEET_ID = ""  # web-editable; the "SHIPMENT LOGS" summary sheet (one row per AWB)
 
 
 # ---------------------------------------------------------------------------
@@ -126,7 +127,7 @@ GMAIL_REFRESH_TOKEN = ""
 EDITABLE_KEYS = (
     "RED_SPREADSHEET_ID", "YELLOW_SPREADSHEET_ID", "LANES",
     "EMAIL_ENABLED", "SMTP_SENDER", "SMTP_APP_PASSWORD", "EMAIL_RECIPIENTS",
-    "AWB_API_TOKEN", "DRIVE_FOLDER_ID", "AWB_SHEET_ID",
+    "AWB_API_TOKEN", "DRIVE_FOLDER_ID", "AWB_SHEET_ID", "SHIPMENT_LOG_SHEET_ID",
     "RESEND_API_KEY", "EMAIL_FROM", "BREVO_API_KEY",
     "GMAIL_CLIENT_ID", "GMAIL_CLIENT_SECRET", "GMAIL_REFRESH_TOKEN",
 )
@@ -138,6 +139,7 @@ def reload():
     global EMAIL_ENABLED, SMTP_SENDER, SMTP_APP_PASSWORD, EMAIL_RECIPIENTS
     global AWB_API_TOKEN, DRIVE_FOLDER_ID, AWB_SHEET_ID, RESEND_API_KEY, EMAIL_FROM
     global BREVO_API_KEY, GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, GMAIL_REFRESH_TOKEN
+    global SHIPMENT_LOG_SHEET_ID
     s = _load_settings()
     RESEND_API_KEY = s["RESEND_API_KEY"] if "RESEND_API_KEY" in s else os.getenv("RESEND_API_KEY", "")
     EMAIL_FROM = s["EMAIL_FROM"] if "EMAIL_FROM" in s else os.getenv("EMAIL_FROM", "")
@@ -150,6 +152,8 @@ def reload():
     AWB_API_TOKEN = s["AWB_API_TOKEN"] if "AWB_API_TOKEN" in s else os.getenv("AWB_API_TOKEN", "")
     DRIVE_FOLDER_ID = s["DRIVE_FOLDER_ID"] if "DRIVE_FOLDER_ID" in s else os.getenv("DRIVE_FOLDER_ID", "")
     AWB_SHEET_ID = s["AWB_SHEET_ID"] if "AWB_SHEET_ID" in s else os.getenv("AWB_SHEET_ID", "")
+    SHIPMENT_LOG_SHEET_ID = s["SHIPMENT_LOG_SHEET_ID"] if "SHIPMENT_LOG_SHEET_ID" in s \
+        else os.getenv("SHIPMENT_LOG_SHEET_ID", "")
 
     RED_SPREADSHEET_ID = s["RED_SPREADSHEET_ID"] if "RED_SPREADSHEET_ID" in s \
         else os.getenv("RED_SPREADSHEET_ID", "")
@@ -194,6 +198,7 @@ def current_settings():
         "AWB_API_TOKEN": AWB_API_TOKEN,
         "DRIVE_FOLDER_ID": DRIVE_FOLDER_ID,
         "AWB_SHEET_ID": AWB_SHEET_ID,
+        "SHIPMENT_LOG_SHEET_ID": SHIPMENT_LOG_SHEET_ID,
         "RESEND_API_KEY": RESEND_API_KEY,
         "EMAIL_FROM": EMAIL_FROM,
         "BREVO_API_KEY": BREVO_API_KEY,
