@@ -149,6 +149,17 @@
         <p>Sends over HTTPS (Render blocks SMTP). Whichever is filled in wins, top-down: <b>Gmail API</b> (sends as your own Google address, best deliverability) &rarr; <b>Brevo</b> (easiest — verify one inbox) &rarr; Resend (needs a verified domain) &rarr; Gmail SMTP (blocked on Render).</p>
       </div>
       <div class="card-body">
+        {% set gmail_on = cfg.GMAIL_CLIENT_ID and cfg.GMAIL_CLIENT_SECRET and cfg.GMAIL_REFRESH_TOKEN %}
+        {% set banner = None %}
+        {% if gmail_on %}{% set banner = 'Gmail API is set up and saved — sending as <b>' ~ (cfg.EMAIL_FROM or 'your Google account') ~ '</b>.' %}
+        {% elif cfg.BREVO_API_KEY and cfg.EMAIL_FROM %}{% set banner = 'Brevo is set up and saved — sending as <b>' ~ cfg.EMAIL_FROM ~ '</b>.' %}
+        {% elif cfg.RESEND_API_KEY and cfg.EMAIL_FROM %}{% set banner = 'Resend is set up and saved — sending as <b>' ~ cfg.EMAIL_FROM ~ '</b>.' %}
+        {% elif cfg.SMTP_SENDER and cfg.SMTP_APP_PASSWORD %}{% set banner = 'Gmail SMTP is set up and saved.' %}{% endif %}
+        {% if banner %}
+        <div style="background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.38);padding:10px 12px;border-radius:8px;font-size:13px;margin-bottom:14px;line-height:1.5">
+          ✓ {{ banner | safe }} Credentials are stored — the secret/token boxes below stay blank on purpose; <b>leave them blank when you save and they're kept</b>. No need to re-enter.
+        </div>
+        {% endif %}
         <div class="grp">
           <label class="check"><input type="checkbox" name="email_enabled" {{ 'checked' if cfg.EMAIL_ENABLED }}> Send the count email after each upload</label>
         </div>
