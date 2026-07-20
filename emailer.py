@@ -54,7 +54,10 @@ def _deliver_resend(subject, text, html, attachments):
     req = urllib.request.Request(
         "https://api.resend.com/emails", data=json.dumps(payload).encode("utf-8"),
         headers={"Authorization": "Bearer " + config.RESEND_API_KEY,
-                 "Content-Type": "application/json"})
+                 "Content-Type": "application/json",
+                 # Resend is behind Cloudflare, which blocks the default Python
+                 # User-Agent with a 403 (error 1010). Any real UA gets through.
+                 "User-Agent": "trishoolin-ops/1.0"})
     try:
         with urllib.request.urlopen(req, timeout=20, context=_SSL) as r:
             resp = json.loads(r.read())
