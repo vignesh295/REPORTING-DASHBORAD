@@ -146,7 +146,7 @@
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>
           Email notifications
         </h2>
-        <p>Sends over HTTPS (Render blocks SMTP). <b>Brevo</b> is preferred — verify just your own inbox and you can email anyone. Resend needs a verified domain; Gmail SMTP is a last-resort fallback.</p>
+        <p>Sends over HTTPS (Render blocks SMTP). Whichever is filled in wins, top-down: <b>Gmail API</b> (sends as your own Google address, best deliverability) &rarr; <b>Brevo</b> (easiest — verify one inbox) &rarr; Resend (needs a verified domain) &rarr; Gmail SMTP (blocked on Render).</p>
       </div>
       <div class="card-body">
         <div class="grp">
@@ -157,38 +157,53 @@
           <textarea id="recipients" name="recipients" style="min-height:60px">{{ cfg.EMAIL_RECIPIENTS | join('\n') }}</textarea>
           <span class="hint">One address per line (or comma-separated).</span>
         </div>
-
-        <div class="row2" style="margin-top:4px;">
-          <div class="grp">
-            <label for="email_from">From address</label>
-            <input type="text" id="email_from" name="email_from" value="{{ cfg.EMAIL_FROM }}" placeholder="you@yourbusiness.com">
-            <span class="hint">The verified sender. For Brevo use the inbox you verified; for Resend testing use onboarding@resend.dev.</span>
-          </div>
-          <div class="grp">
-            <label for="brevo_api_key">Brevo API key <span style="color:var(--brand-ink)">(recommended)</span></label>
-            <input type="password" id="brevo_api_key" name="brevo_api_key" value="" placeholder="{{ 'xkeysib-•••• (set — blank to keep)' if cfg.BREVO_API_KEY else 'xkeysib-…' }}">
-            <span class="hint">Sends to anyone once you verify your sender email. Blank = keep current.</span>
-          </div>
+        <div class="grp">
+          <label for="email_from">From address</label>
+          <input type="text" id="email_from" name="email_from" value="{{ cfg.EMAIL_FROM }}" placeholder="you@yourbusiness.com">
+          <span class="hint">The address mail is sent as. Gmail API &rarr; your own Google address. Brevo &rarr; your verified inbox. Resend test &rarr; onboarding@resend.dev.</span>
         </div>
 
+        <p style="margin:18px 0 6px;font-weight:600;font-size:13px;border-top:1px solid var(--border,#e5e5e5);padding-top:14px">Option A · Gmail API <span class="muted">— sends as your own Google address, best deliverability (recommended)</span></p>
         <div class="row2">
+          <div class="grp">
+            <label for="gmail_client_id">OAuth client ID</label>
+            <input type="text" id="gmail_client_id" name="gmail_client_id" value="{{ cfg.GMAIL_CLIENT_ID }}" placeholder="…apps.googleusercontent.com">
+          </div>
+          <div class="grp">
+            <label for="gmail_client_secret">OAuth client secret</label>
+            <input type="password" id="gmail_client_secret" name="gmail_client_secret" value="" placeholder="{{ '•••• (set — blank to keep)' if cfg.GMAIL_CLIENT_SECRET else 'GOCSPX-…' }}">
+          </div>
+        </div>
+        <div class="grp">
+          <label for="gmail_refresh_token">OAuth refresh token</label>
+          <input type="password" id="gmail_refresh_token" name="gmail_refresh_token" value="" placeholder="{{ '•••• (set — blank to keep)' if cfg.GMAIL_REFRESH_TOKEN else '1//…' }}">
+          <span class="hint">One-time setup via Google Cloud + the OAuth Playground (set the app's user type to <b>Internal</b> so the token never expires). Blank = keep current. Filling all three makes Gmail the sender — clear the Client ID to switch back to Brevo/Resend.</span>
+        </div>
+
+        <p style="margin:18px 0 6px;font-weight:600;font-size:13px;border-top:1px solid var(--border,#e5e5e5);padding-top:14px">Option B · Brevo / Resend <span class="muted">— HTTP, no Google setup</span></p>
+        <div class="row2">
+          <div class="grp">
+            <label for="brevo_api_key">Brevo API key</label>
+            <input type="password" id="brevo_api_key" name="brevo_api_key" value="" placeholder="{{ 'xkeysib-•••• (set — blank to keep)' if cfg.BREVO_API_KEY else 'xkeysib-…' }}">
+            <span class="hint">Verify one inbox, email anyone. Blank = keep.</span>
+          </div>
           <div class="grp">
             <label for="resend_api_key">Resend API key <span class="muted">(needs a verified domain)</span></label>
             <input type="password" id="resend_api_key" name="resend_api_key" value="" placeholder="{{ 're_•••• (set — blank to keep)' if cfg.RESEND_API_KEY else 're_…' }}">
-            <span class="hint">Only used if no Brevo key. Blank = keep.</span>
+            <span class="hint">Only used if no Gmail/Brevo. Blank = keep.</span>
           </div>
-          <div class="grp"></div>
         </div>
 
+        <p style="margin:18px 0 6px;font-weight:600;font-size:13px;border-top:1px solid var(--border,#e5e5e5);padding-top:14px">Option C · Gmail SMTP <span class="muted">— fallback, blocked on Render</span></p>
         <div class="row2">
           <div class="grp">
-            <label for="sender">Gmail sender <span class="muted">(SMTP fallback)</span></label>
+            <label for="sender">Gmail sender</label>
             <input type="text" id="sender" name="sender" value="{{ cfg.SMTP_SENDER }}" placeholder="ops@gmail.com">
           </div>
           <div class="grp">
             <label for="app_password">Gmail app password</label>
             <input type="password" id="app_password" name="app_password" value="" placeholder="{{ '•••• (set — blank to keep)' if cfg.SMTP_APP_PASSWORD else '16-char app password' }}">
-            <span class="hint">Only used if no Brevo/Resend key. Blank = keep.</span>
+            <span class="hint">Only used if no Gmail API/Brevo/Resend. Blank = keep.</span>
           </div>
         </div>
       </div>

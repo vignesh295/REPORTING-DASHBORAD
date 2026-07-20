@@ -112,8 +112,15 @@ EMAIL_RECIPIENTS = []
 RESEND_API_KEY = ""
 EMAIL_FROM = ""
 # Brevo HTTP email API — uses single-sender verification (verify your own inbox,
-# no domain DNS needed), so you can send to any recipient. Preferred when set.
+# no domain DNS needed), so you can send to any recipient.
 BREVO_API_KEY = ""
+# Gmail API (HTTP) — sends as your own Google/Workspace address via an OAuth2
+# refresh token, so it works where SMTP is blocked (Render) with top-tier
+# deliverability. Preferred over Brevo/Resend when all three fields are set.
+# EMAIL_FROM (if set) is used as the From header and must be the authorised account.
+GMAIL_CLIENT_ID = ""
+GMAIL_CLIENT_SECRET = ""
+GMAIL_REFRESH_TOKEN = ""
 
 # Keys the Settings page is allowed to write.
 EDITABLE_KEYS = (
@@ -121,6 +128,7 @@ EDITABLE_KEYS = (
     "EMAIL_ENABLED", "SMTP_SENDER", "SMTP_APP_PASSWORD", "EMAIL_RECIPIENTS",
     "AWB_API_TOKEN", "DRIVE_FOLDER_ID", "AWB_SHEET_ID",
     "RESEND_API_KEY", "EMAIL_FROM", "BREVO_API_KEY",
+    "GMAIL_CLIENT_ID", "GMAIL_CLIENT_SECRET", "GMAIL_REFRESH_TOKEN",
 )
 
 
@@ -129,11 +137,16 @@ def reload():
     global RED_SPREADSHEET_ID, YELLOW_SPREADSHEET_ID, LANES
     global EMAIL_ENABLED, SMTP_SENDER, SMTP_APP_PASSWORD, EMAIL_RECIPIENTS
     global AWB_API_TOKEN, DRIVE_FOLDER_ID, AWB_SHEET_ID, RESEND_API_KEY, EMAIL_FROM
-    global BREVO_API_KEY
+    global BREVO_API_KEY, GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, GMAIL_REFRESH_TOKEN
     s = _load_settings()
     RESEND_API_KEY = s["RESEND_API_KEY"] if "RESEND_API_KEY" in s else os.getenv("RESEND_API_KEY", "")
     EMAIL_FROM = s["EMAIL_FROM"] if "EMAIL_FROM" in s else os.getenv("EMAIL_FROM", "")
     BREVO_API_KEY = s["BREVO_API_KEY"] if "BREVO_API_KEY" in s else os.getenv("BREVO_API_KEY", "")
+    GMAIL_CLIENT_ID = s["GMAIL_CLIENT_ID"] if "GMAIL_CLIENT_ID" in s else os.getenv("GMAIL_CLIENT_ID", "")
+    GMAIL_CLIENT_SECRET = s["GMAIL_CLIENT_SECRET"] if "GMAIL_CLIENT_SECRET" in s \
+        else os.getenv("GMAIL_CLIENT_SECRET", "")
+    GMAIL_REFRESH_TOKEN = s["GMAIL_REFRESH_TOKEN"] if "GMAIL_REFRESH_TOKEN" in s \
+        else os.getenv("GMAIL_REFRESH_TOKEN", "")
     AWB_API_TOKEN = s["AWB_API_TOKEN"] if "AWB_API_TOKEN" in s else os.getenv("AWB_API_TOKEN", "")
     DRIVE_FOLDER_ID = s["DRIVE_FOLDER_ID"] if "DRIVE_FOLDER_ID" in s else os.getenv("DRIVE_FOLDER_ID", "")
     AWB_SHEET_ID = s["AWB_SHEET_ID"] if "AWB_SHEET_ID" in s else os.getenv("AWB_SHEET_ID", "")
@@ -184,6 +197,9 @@ def current_settings():
         "RESEND_API_KEY": RESEND_API_KEY,
         "EMAIL_FROM": EMAIL_FROM,
         "BREVO_API_KEY": BREVO_API_KEY,
+        "GMAIL_CLIENT_ID": GMAIL_CLIENT_ID,
+        "GMAIL_CLIENT_SECRET": GMAIL_CLIENT_SECRET,
+        "GMAIL_REFRESH_TOKEN": GMAIL_REFRESH_TOKEN,
     }
 
 
@@ -223,7 +239,8 @@ def google_ready():
 def email_ready():
     if not (EMAIL_ENABLED and EMAIL_RECIPIENTS):
         return False
-    return bool((BREVO_API_KEY and EMAIL_FROM) or (RESEND_API_KEY and EMAIL_FROM)
+    return bool((GMAIL_CLIENT_ID and GMAIL_CLIENT_SECRET and GMAIL_REFRESH_TOKEN)
+                or (BREVO_API_KEY and EMAIL_FROM) or (RESEND_API_KEY and EMAIL_FROM)
                 or (SMTP_SENDER and SMTP_APP_PASSWORD))
 
 

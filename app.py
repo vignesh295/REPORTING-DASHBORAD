@@ -445,6 +445,11 @@ def settings_config():
         updates["RESEND_API_KEY"] = f.get("resend_api_key").strip()
     if f.get("brevo_api_key", "").strip():
         updates["BREVO_API_KEY"] = f.get("brevo_api_key").strip()
+    updates["GMAIL_CLIENT_ID"] = f.get("gmail_client_id", "").strip()
+    if f.get("gmail_client_secret", "").strip():
+        updates["GMAIL_CLIENT_SECRET"] = f.get("gmail_client_secret").strip()
+    if f.get("gmail_refresh_token", "").strip():
+        updates["GMAIL_REFRESH_TOKEN"] = f.get("gmail_refresh_token").strip()
     # Clicking "send test" means you want email on — enable it regardless of the tick.
     if f.get("_action") == "test":
         updates["EMAIL_ENABLED"] = True

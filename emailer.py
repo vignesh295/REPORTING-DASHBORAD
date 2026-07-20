@@ -1,11 +1,13 @@
 """
 Email delivery over HTTP (works where outbound SMTP is blocked, e.g. Render).
 Transport is chosen in this order:
-  1. Brevo   (BREVO_API_KEY + EMAIL_FROM) — single-sender verification, so it can
-     send to ANY recipient without owning/verifying a whole domain. Preferred.
-  2. Resend  (RESEND_API_KEY + EMAIL_FROM) — needs a verified domain to send to
+  1. Gmail API (GMAIL_CLIENT_ID + GMAIL_CLIENT_SECRET + GMAIL_REFRESH_TOKEN) —
+     sends as your own Google/Workspace address over HTTPS with top deliverability.
+  2. Brevo   (BREVO_API_KEY + EMAIL_FROM) — single-sender verification, so it can
+     send to ANY recipient without owning/verifying a whole domain.
+  3. Resend  (RESEND_API_KEY + EMAIL_FROM) — needs a verified domain to send to
      recipients other than the account owner.
-  3. Gmail SMTP (SMTP_SENDER + SMTP_APP_PASSWORD) — fallback; blocked on Render.
+  4. Gmail SMTP (SMTP_SENDER + SMTP_APP_PASSWORD) — fallback; blocked on Render.
 Sends: the per-lane count report, the Amazon shipment-confirmation file, the
 end-of-day summary, and a test email.
 """
@@ -37,6 +39,8 @@ def _deliver(subject, text, html=None, attachments=None):
         return "disabled"
     if not config.EMAIL_RECIPIENTS:
         return "not-configured"
+    if config.GMAIL_CLIENT_ID and config.GMAIL_CLIENT_SECRET and config.GMAIL_REFRESH_TOKEN:
+        return _deliver_gmail_api(subject, text, html, attachments)
     if config.BREVO_API_KEY and config.EMAIL_FROM:
         return _deliver_brevo(subject, text, html, attachments)
     if config.RESEND_API_KEY and config.EMAIL_FROM:
@@ -44,6 +48,67 @@ def _deliver(subject, text, html=None, attachments=None):
     if config.SMTP_SENDER and config.SMTP_APP_PASSWORD:
         return _deliver_smtp(subject, text, html, attachments)
     return "not-configured"
+
+
+def _gmail_access_token():
+    """Mint a fresh 1-hour access token from the stored OAuth2 refresh token.
+    Uses google-auth (already a dependency) so token refresh, clock-skew and
+    retries are handled correctly. Raises RuntimeError with the reason on failure
+    (e.g. an expired/revoked refresh token -> invalid_grant -> re-run consent)."""
+    from google.oauth2.credentials import Credentials
+    from google.auth.transport.requests import Request
+    creds = Credentials(
+        token=None,
+        refresh_token=config.GMAIL_REFRESH_TOKEN,
+        token_uri="https://oauth2.googleapis.com/token",
+        client_id=config.GMAIL_CLIENT_ID,
+        client_secret=config.GMAIL_CLIENT_SECRET,
+        scopes=["https://www.googleapis.com/auth/gmail.send"],
+    )
+    try:
+        creds.refresh(Request())
+    except Exception as e:  # noqa: BLE001
+        raise RuntimeError(
+            "Gmail OAuth token refresh failed (re-check the client ID/secret and "
+            f"refresh token, or re-authorise): {e}")
+    return creds.token
+
+
+def _deliver_gmail_api(subject, text, html, attachments):
+    token = _gmail_access_token()
+    outer = MIMEMultipart("mixed")
+    alt = MIMEMultipart("alternative")
+    if text:
+        alt.attach(MIMEText(text, "plain", "utf-8"))
+    if html:
+        alt.attach(MIMEText(html, "html", "utf-8"))
+    if not (text or html):
+        alt.attach(MIMEText(subject, "plain", "utf-8"))
+    outer.attach(alt)
+    for a in (attachments or []):
+        part = MIMEText(a["content"], "plain", "utf-8")
+        part.add_header("Content-Disposition", "attachment", filename=a["filename"])
+        outer.attach(part)
+    outer["Subject"] = subject
+    if config.EMAIL_FROM:            # else Gmail uses the authorised account's address
+        outer["From"] = config.EMAIL_FROM
+    outer["To"] = ", ".join(config.EMAIL_RECIPIENTS)
+    # RFC 5322 bytes -> base64url in the Gmail Message.raw field (use as_bytes so
+    # UTF-8 content encodes correctly).
+    raw = base64.urlsafe_b64encode(outer.as_bytes()).decode("ascii")
+    req = urllib.request.Request(
+        "https://gmail.googleapis.com/gmail/v1/users/me/messages/send",
+        data=json.dumps({"raw": raw}).encode("utf-8"),
+        headers={"Authorization": "Bearer " + token,
+                 "Content-Type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=30, context=_SSL) as r:
+            resp = json.loads(r.read())
+    except urllib.error.HTTPError as e:
+        raise RuntimeError(f"Gmail API {e.code}: {e.read().decode('utf-8', 'replace')}")
+    if resp.get("id"):
+        return "sent"
+    raise RuntimeError("Gmail API: " + json.dumps(resp))
 
 
 def _deliver_brevo(subject, text, html, attachments):
