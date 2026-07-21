@@ -210,9 +210,9 @@ def send_test_email():
     return _deliver("Trishoolin Ops — test email (system is working)", text, html)
 
 
-def send_daily_summary(rows, totals, date_label="", recipients=None):
-    """Daily 'Pending Shipment Status by Lane' email. `rows` = per-lane dicts with
-    lane, red_today, yellow_today (from store.dashboard_rows()). Mapping:
+def render_daily_summary(rows, totals, date_label=""):
+    """Build (subject, text, html) for the daily summary — no send, so it can be
+    previewed before sending. Mapping:
       Orders Not Shipped Today = yellow (due today, not shipped)
       Buy Ship Orders Pending  = red   (overdue / buy-ship pending)"""
     cell = "padding:8px 14px;border:1px solid #e2e2e2"
@@ -267,6 +267,12 @@ def send_daily_summary(rows, totals, date_label="", recipients=None):
             "Thank you.")
     subject = (f"Daily Pending Shipment Status by Lane{(' — ' + date_label) if date_label else ''}: "
                f"{total_ns} not shipped / {total_bs} buy-ship pending")
+    return subject, text, html
+
+
+def send_daily_summary(rows, totals, date_label="", recipients=None):
+    """Render + send the daily summary. Returns 'sent' | 'disabled' | 'not-configured'."""
+    subject, text, html = render_daily_summary(rows, totals, date_label)
     return _deliver(subject, text, html, recipients=recipients)
 
 

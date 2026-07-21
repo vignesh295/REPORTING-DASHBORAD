@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% set active = 'home' %}
+{% block title %}Review summary{% endblock %}
+
+{% block content %}
+<div class="head-row" style="justify-content:flex-end; margin-bottom:16px;">
+  <a class="btn btn-ghost" href="{{ url_for('buy_ship_left') }}">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H6"/><path d="m11 6-6 6 6 6"/></svg>
+    Back
+  </a>
+</div>
+
+<div class="page-head">
+  <h1>Review before sending</h1>
+  <p>This is the exact email. Check it, then send — nothing goes out until you press Send now.</p>
+</div>
+
+{% if error %}
+<div style="padding:14px 16px;border:1px solid var(--line);border-radius:12px;background:var(--panel);color:var(--danger,#b91c1c);font-size:13.5px;">
+  Couldn't build the message: {{ error }}
+</div>
+{% else %}
+<div style="border:1px solid var(--line);border-radius:12px;background:var(--panel);padding:14px 16px;margin-bottom:14px;font-size:13.5px;color:var(--ink-2);line-height:1.7;">
+  <div><b style="color:var(--ink)">To:</b> {{ recipients | join(', ') }}</div>
+  <div style="margin-top:3px;"><b style="color:var(--ink)">Subject:</b> {{ subject }}</div>
+</div>
+
+<div style="border:1px solid var(--line);border-radius:12px;background:#ffffff;padding:20px 22px;margin-bottom:18px;overflow-x:auto;">
+  {{ html_body | safe }}
+</div>
+
+<form method="post" action="{{ url_for('send_summary_now') }}" style="display:flex;gap:10px;"
+      onsubmit="return confirm('Send this email now to the {{ recipients|length }} recipients?');">
+  <button class="btn btn-primary" type="submit">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 3 3 9-3 9 19-9Z"/><path d="M6 12h16"/></svg>
+    Send now
+  </button>
+  <a class="btn btn-ghost" href="{{ url_for('buy_ship_left') }}">Cancel</a>
+</form>
+{% endif %}
+{% endblock %}

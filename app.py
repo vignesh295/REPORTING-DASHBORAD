@@ -296,6 +296,26 @@ def send_summary_now():
     return redirect(url_for("buy_ship_left"))
 
 
+@app.route("/buy-ship-left/summary-preview")
+@auth.role_required("admin")
+def summary_preview():
+    """Render today's summary email so it can be reviewed before sending."""
+    import automation
+    import emailer
+    import datetime
+    label = datetime.datetime.now(
+        datetime.timezone(datetime.timedelta(hours=5, minutes=30))).strftime("%d.%m.%Y")
+    subject, html_body, err = "", "", None
+    try:
+        rows, totals = automation._lane_pending_counts()
+        subject, _text, html_body = emailer.render_daily_summary(rows, totals, label)
+    except Exception as e:  # noqa: BLE001
+        traceback.print_exc()
+        err = str(e)
+    return render_template("summary_preview.html", subject=subject, html_body=html_body,
+                           recipients=_SUMMARY_RECIPIENTS, error=err)
+
+
 @app.route("/api/shipment/notify", methods=["POST"])
 def api_shipment_notify():
     """Drive-folder Apps Script pings this with a new file's id; the app pulls
