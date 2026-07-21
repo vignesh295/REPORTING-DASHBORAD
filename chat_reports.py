@@ -71,8 +71,9 @@ def _list_spaces(token, name_has="ORDER REPORT"):
 
 def _list_messages(token, space, max_pages=5):
     out, page, n = [], "", 0
+    order = urllib.parse.quote("createTime desc")   # newest first, not the API default (oldest)
     while n < max_pages:
-        url = f"{CHAT}/{space}/messages?pageSize=100" + (f"&pageToken={page}" if page else "")
+        url = f"{CHAT}/{space}/messages?pageSize=100&orderBy={order}" + (f"&pageToken={page}" if page else "")
         data = _get(url, token)
         out.extend(data.get("messages", []))
         page = data.get("nextPageToken")
@@ -167,6 +168,9 @@ def sync(report):
                     os.unlink(tmp.name)
                 except OSError:
                     pass
+            if res.get("error"):
+                report.setdefault("errors", []).append(f"{name}: {res['error']}")
+                continue
             report.setdefault("chat_processed", []).append({
                 "lane": lane, "file": name,
                 "red": res.get("red"), "yellow": res.get("yellow"),

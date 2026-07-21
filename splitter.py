@@ -22,26 +22,46 @@ from shipment_core import _clean
 SOURCE_TAB = "SHIPPING QUEUE"
 _ORIGIN = {"IND": "India", "INDIA": "India", "USA": "USA", "UK": "UK"}
 
+# Ops SKU-code file names (e.g. "AMAZON ORDER REPORT AUBZ …"): the code encodes
+# origin (BZ=USA, GD=UK) + destination (AU=AUS, UAE=UAE, UK=UK).
+_CODE_LANES = {
+    "UAEBZ": "USA → UAE", "UAEGD": "UK → UAE",
+    "AUBZ": "USA → AUS", "AUGD": "UK → AUS",
+    "UKBZ": "USA → UK",
+}
+
+
+def _match(lanes, target):
+    t = target.replace(" ", "").upper()
+    return next((l for l in lanes if l.replace(" ", "").upper() == t), None)
+
 
 def lane_from_filename(name, lanes):
-    """Match 'ORIGIN TO DEST' in the file name to one of the configured lanes."""
-    m = re.search(r"([A-Za-z]+)\s+TO\s+([A-Za-z]+)", name, re.I)
-    if not m:
-        return None
-    origin = _ORIGIN.get(m.group(1).upper(), m.group(1).title())
-    target = f"{origin} → {m.group(2).upper()}".replace(" ", "").upper()
-    for lane in lanes:
-        if lane.replace(" ", "").upper() == target:
+    """Match a report file name to a configured lane — either 'ORIGIN TO DEST'
+    or an ops SKU code (AUBZ, UAEGD, …)."""
+    up = name.upper()
+    m = re.search(r"([A-Z]+)\s+TO\s+([A-Z]+)", up)
+    if m:
+        lane = _match(lanes, f"{_ORIGIN.get(m.group(1), m.group(1).title())} → {m.group(2)}")
+        if lane:
             return lane
+    for code in sorted(_CODE_LANES, key=len, reverse=True):  # longest first (AUBZ before AU)
+        if re.search(r"\b" + code + r"\b", up):
+            lane = _match(lanes, _CODE_LANES[code])
+            if lane:
+                return lane
     return None
 
 
 def _read_tab(path, tab):
     wb = openpyxl.load_workbook(path, data_only=True, read_only=True)
     try:
-        real = next((s for s in wb.sheetnames if s.strip().upper() == tab.strip().upper()), None)
+        names = list(wb.sheetnames)
+        real = next((s for s in names if s.strip().upper() == tab.strip().upper()), None)
         if real is None:
-            return [], []
+            # Raise (rather than return empty) so a wrong-format file is skipped,
+            # never used to clear a lane tab.
+            raise ValueError(f"no '{tab}' tab (tabs: {names})")
         grid = [list(r) for r in wb[real].iter_rows(values_only=True)]
     finally:
         wb.close()
@@ -156,10 +176,15 @@ def write_split(lane, red_rows, yellow_rows, red_id=None, yellow_id=None,
 
 
 def process_order_report(path, lanes=None):
-    """Detect the lane from the file name, split it, and write to the sheets."""
+    """Detect the lane from the file name, split it, and write to the sheets.
+    Returns {'error': ...} (no write) if the lane can't be detected or the file
+    isn't in the expected SHIPPING QUEUE format."""
     lanes = lanes or config.LANES
     lane = lane_from_filename(os.path.basename(path), lanes)
     if not lane:
         return {"error": f"no lane detected in {os.path.basename(path)!r}"}
-    red, yellow = split_order_report(path)
+    try:
+        red, yellow = split_order_report(path)
+    except Exception as e:  # noqa: BLE001  (missing tab / unreadable -> skip, don't clear)
+        return {"error": f"{lane}: {e}", "lane": lane}
     return write_split(lane, red, yellow)
