@@ -208,6 +208,30 @@ def shipment_download(key):
                     headers={"Content-Disposition": f'attachment; filename="{gen["filename"]}"'})
 
 
+@app.route("/shipment/sync", methods=["POST"])
+@auth.role_required("admin")
+def shipment_sync():
+    """Manual trigger for the delivery sync (same job the cron runs): pull Drive
+    files, read the AWB sheet, update the SHIPMENT LOGS sheet, generate any
+    ready Amazon files. Lets you run it on demand and see the result."""
+    import automation
+    try:
+        rep = automation.process_deliveries()
+    except Exception as e:  # noqa: BLE001
+        traceback.print_exc()
+        flash(f"Sync failed: {e}", "error")
+        return redirect(url_for("shipment"))
+    msg = (f"Sync done — pulled {rep.get('files_pulled', 0)} files "
+           f"({rep.get('awbs_ingested', 0)} AWBs), {rep.get('delivered_seen', 0)} delivered, "
+           f"log +{rep.get('log_added', 0)} new / {rep.get('log_updated', 0)} updated, "
+           f"{len(rep.get('generated', []))} Amazon files generated.")
+    if rep.get("errors"):
+        flash(msg + " Errors: " + " | ".join(rep["errors"][:3]), "error")
+    else:
+        flash(msg, "success")
+    return redirect(url_for("shipment"))
+
+
 @app.route("/api/shipment/notify", methods=["POST"])
 def api_shipment_notify():
     """Drive-folder Apps Script pings this with a new file's id; the app pulls

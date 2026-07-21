@@ -96,6 +96,15 @@ DRIVE_FOLDER_ID = ""   # web-editable; the shared folder the manifests land in
 AWB_SHEET_ID = ""      # web-editable; the "ALL NEW COMBINED AWB REPORT" sheet
 SHIPMENT_LOG_SHEET_ID = ""  # web-editable; the "SHIPMENT LOGS" summary sheet (one row per AWB)
 
+# Built-in default IDs. Used when nothing is saved in Settings/env, so the app
+# works out of the box and survives redeploys without re-entering them. Each can
+# still be overridden from the Settings page (a non-empty value there wins).
+_DEFAULT_DRIVE_FOLDER_ID = "1c1lRKRFAVV72a3dw_1WqV4snI51Ti5yE"
+_DEFAULT_AWB_SHEET_ID = "1KZAt5yC1ehVv82URiRRla549zqFUlsHqGyrd8OtU3OQ"
+_DEFAULT_SHIPMENT_LOG_SHEET_ID = "1YCalR2F9EUM7WhcoPsk8utpNVpf-3O9rOSFJzsbgh-s"
+_DEFAULT_RED_SPREADSHEET_ID = "1eugJXDkluk3CVDUTa1xLUgSo298FV96RHv_nazjQb74"
+_DEFAULT_YELLOW_SPREADSHEET_ID = "1saZbj7OVSsIE4EKMOXFl-aqybYw48XOYcz7dCKU_v-w"
+
 
 # ---------------------------------------------------------------------------
 # Web-editable config (settings.json overlays .env). Set by reload().
@@ -150,15 +159,17 @@ def reload():
     GMAIL_REFRESH_TOKEN = s["GMAIL_REFRESH_TOKEN"] if "GMAIL_REFRESH_TOKEN" in s \
         else os.getenv("GMAIL_REFRESH_TOKEN", "")
     AWB_API_TOKEN = s["AWB_API_TOKEN"] if "AWB_API_TOKEN" in s else os.getenv("AWB_API_TOKEN", "")
-    DRIVE_FOLDER_ID = s["DRIVE_FOLDER_ID"] if "DRIVE_FOLDER_ID" in s else os.getenv("DRIVE_FOLDER_ID", "")
-    AWB_SHEET_ID = s["AWB_SHEET_ID"] if "AWB_SHEET_ID" in s else os.getenv("AWB_SHEET_ID", "")
-    SHIPMENT_LOG_SHEET_ID = s["SHIPMENT_LOG_SHEET_ID"] if "SHIPMENT_LOG_SHEET_ID" in s \
-        else os.getenv("SHIPMENT_LOG_SHEET_ID", "")
+    # These fall back to a built-in default when unset/blank (so a wiped DB or a
+    # fresh deploy still works); a non-empty Settings/env value overrides.
+    DRIVE_FOLDER_ID = s.get("DRIVE_FOLDER_ID") or os.getenv("DRIVE_FOLDER_ID") or _DEFAULT_DRIVE_FOLDER_ID
+    AWB_SHEET_ID = s.get("AWB_SHEET_ID") or os.getenv("AWB_SHEET_ID") or _DEFAULT_AWB_SHEET_ID
+    SHIPMENT_LOG_SHEET_ID = (s.get("SHIPMENT_LOG_SHEET_ID") or os.getenv("SHIPMENT_LOG_SHEET_ID")
+                             or _DEFAULT_SHIPMENT_LOG_SHEET_ID)
 
-    RED_SPREADSHEET_ID = s["RED_SPREADSHEET_ID"] if "RED_SPREADSHEET_ID" in s \
-        else os.getenv("RED_SPREADSHEET_ID", "")
-    YELLOW_SPREADSHEET_ID = s["YELLOW_SPREADSHEET_ID"] if "YELLOW_SPREADSHEET_ID" in s \
-        else os.getenv("YELLOW_SPREADSHEET_ID", "")
+    RED_SPREADSHEET_ID = (s.get("RED_SPREADSHEET_ID") or os.getenv("RED_SPREADSHEET_ID")
+                          or _DEFAULT_RED_SPREADSHEET_ID)
+    YELLOW_SPREADSHEET_ID = (s.get("YELLOW_SPREADSHEET_ID") or os.getenv("YELLOW_SPREADSHEET_ID")
+                             or _DEFAULT_YELLOW_SPREADSHEET_ID)
     LANES = s["LANES"] if isinstance(s.get("LANES"), list) and s["LANES"] \
         else _list("LANES", DEFAULT_LANES)
     EMAIL_ENABLED = bool(s["EMAIL_ENABLED"]) if "EMAIL_ENABLED" in s \
