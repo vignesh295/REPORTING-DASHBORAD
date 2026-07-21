@@ -23,11 +23,13 @@ SOURCE_TAB = "SHIPPING QUEUE"
 _ORIGIN = {"IND": "India", "INDIA": "India", "USA": "USA", "UK": "UK"}
 
 # Ops SKU-code file names (e.g. "AMAZON ORDER REPORT AUBZ …"): the code encodes
-# origin (BZ=USA, GD=UK) + destination (AU=AUS, UAE=UAE, UK=UK).
+# origin (BZ=USA, GD=UK) + destination (AU=AUS, UAE=UAE). UK-destination files are
+# left out per ops (only USA / UAE / AUS destinations are handled).
 _CODE_LANES = {
     "UAEBZ": "USA → UAE", "UAEGD": "UK → UAE",
     "AUBZ": "USA → AUS", "AUGD": "UK → AUS",
-    "UKBZ": "USA → UK",
+    # India-origin + UK→USA codes: add here once confirmed
+    # e.g. "AUIN": "India → AUS", "UAEIN": "India → UAE", ...
 }
 
 
@@ -36,19 +38,24 @@ def _match(lanes, target):
     return next((l for l in lanes if l.replace(" ", "").upper() == t), None)
 
 
+def _skip_lane(lane):
+    """UK-destination lanes are intentionally not processed here."""
+    return lane.split("→")[-1].strip().upper() == "UK"
+
+
 def lane_from_filename(name, lanes):
     """Match a report file name to a configured lane — either 'ORIGIN TO DEST'
-    or an ops SKU code (AUBZ, UAEGD, …)."""
+    or an ops SKU code (AUBZ, UAEGD, …). UK-destination lanes are skipped."""
     up = name.upper()
     m = re.search(r"([A-Z]+)\s+TO\s+([A-Z]+)", up)
     if m:
         lane = _match(lanes, f"{_ORIGIN.get(m.group(1), m.group(1).title())} → {m.group(2)}")
-        if lane:
+        if lane and not _skip_lane(lane):
             return lane
     for code in sorted(_CODE_LANES, key=len, reverse=True):  # longest first (AUBZ before AU)
         if re.search(r"\b" + code + r"\b", up):
             lane = _match(lanes, _CODE_LANES[code])
-            if lane:
+            if lane and not _skip_lane(lane):
                 return lane
     return None
 
