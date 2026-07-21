@@ -66,10 +66,59 @@ def _group_by_awb(headers, rows):
 
 
 # ---------------------------------------------------------------------------
-# Daily summary
+# Daily summary — counts live from the RED / YELLOW sheets
 # ---------------------------------------------------------------------------
+def _count_blank_reason(vals):
+    """Rows whose REASON is blank (an order still pending). A non-empty REASON =
+    handled (out of stock / cancelled / refunded) -> not counted."""
+    if len(vals) < 2:
+        return 0
+    H = [str(h).strip().lower() for h in vals[0]]
+    ri = next((i for i, h in enumerate(H) if h == "reason"), None)
+    oi = next((i for i, h in enumerate(H) if h == "order id"), None)
+    n = 0
+    for r in vals[1:]:
+        reason = str(r[ri]).strip() if (ri is not None and ri < len(r)) else ""
+        oid = str(r[oi]).strip() if (oi is not None and oi < len(r)) else ""
+        if reason == "" and (oi is None or oid):
+            n += 1
+    return n
+
+
+def _batch_blank_reason(sh, lanes):
+    """ONE batched read of all lane tabs -> {lane: blank-REASON count} (avoids a
+    read-per-tab, which trips the Sheets per-minute read quota)."""
+    ranges = [f"'{lane}'!A:Z" for lane in lanes]
+    try:
+        resp = sh.values_batch_get(ranges)
+    except Exception:  # noqa: BLE001
+        return {}
+    out = {}
+    for lane, vr in zip(lanes, resp.get("valueRanges", [])):
+        out[lane] = _count_blank_reason(vr.get("values", []))
+    return out
+
+
+def _lane_pending_counts():
+    """Per-lane blank-REASON counts from the RED/YELLOW sheets -> rows + totals
+    shaped for emailer.send_daily_summary (yellow_today / red_today)."""
+    rows, ty, tr = [], 0, 0
+    if not (config.has_service_account()
+            and config.RED_SPREADSHEET_ID and config.YELLOW_SPREADSHEET_ID):
+        return rows, {"yellow_today": 0, "red_today": 0}
+    import sheets
+    ycounts = _batch_blank_reason(sheets.client().open_by_key(config.YELLOW_SPREADSHEET_ID), config.LANES)
+    rcounts = _batch_blank_reason(sheets.client().open_by_key(config.RED_SPREADSHEET_ID), config.LANES)
+    for lane in config.LANES:
+        y, r = ycounts.get(lane, 0), rcounts.get(lane, 0)
+        rows.append({"lane": lane, "yellow_today": y, "red_today": r})
+        ty += y
+        tr += r
+    return rows, {"yellow_today": ty, "red_today": tr}
+
+
 def daily_summary(date_label=""):
-    rows, totals, _refreshed = store.dashboard_rows()
+    rows, totals = _lane_pending_counts()
     status = emailer.send_daily_summary(rows, totals, date_label)
     return {"lanes": len(rows), "red": totals.get("red_today", 0),
             "yellow": totals.get("yellow_today", 0), "email": status}
