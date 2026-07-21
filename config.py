@@ -170,8 +170,14 @@ def reload():
                           or _DEFAULT_RED_SPREADSHEET_ID)
     YELLOW_SPREADSHEET_ID = (s.get("YELLOW_SPREADSHEET_ID") or os.getenv("YELLOW_SPREADSHEET_ID")
                              or _DEFAULT_YELLOW_SPREADSHEET_ID)
-    LANES = s["LANES"] if isinstance(s.get("LANES"), list) and s["LANES"] \
-        else _list("LANES", DEFAULT_LANES)
+    # Use a saved LANES list only if it's a real custom set — ignore the old
+    # "Lane 1..Lane 10" placeholders that got saved, and fall back to the real ones.
+    _sl = s.get("LANES")
+    if (isinstance(_sl, list) and _sl
+            and not all(str(x).strip().lower().startswith("lane ") for x in _sl)):
+        LANES = _sl
+    else:
+        LANES = _list("LANES", DEFAULT_LANES)
     EMAIL_ENABLED = bool(s["EMAIL_ENABLED"]) if "EMAIL_ENABLED" in s \
         else _env_bool("EMAIL_ENABLED", "true")
     SMTP_SENDER = s["SMTP_SENDER"] if "SMTP_SENDER" in s else os.getenv("SMTP_SENDER", "")
