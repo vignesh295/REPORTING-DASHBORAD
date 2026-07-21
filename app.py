@@ -252,8 +252,9 @@ def shipment_order_reports():
         lanes = ", ".join(f"{p['lane']} ({p['red']}R/{p['yellow']}Y)" for p in processed)
         msg = f"Order reports synced from Chat — {len(processed)} lane(s): {lanes}."
     else:
-        msg = (f"No order reports processed. Spaces found: {spaces or 'none'}. "
-               f"Files seen: {rep.get('chat_files_seen') or 'none'}.")
+        msg = (f"No order reports processed. Token client: {rep.get('token_client', '?')}. "
+               f"Token scopes: {rep.get('token_scopes', '?')}. "
+               f"Spaces found: {spaces or 'none'}. Files seen: {rep.get('chat_files_seen') or 'none'}.")
     if rep.get("errors"):
         flash(msg + " Errors: " + " | ".join(rep["errors"][:3]), "error")
     else:

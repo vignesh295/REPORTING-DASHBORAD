@@ -48,6 +48,14 @@ def _get(url, token, raw=False):
     return data if raw else json.loads(data)
 
 
+def _tokeninfo(access_token):
+    """What scopes + which client (aud) this access token actually has — the
+    ground truth when a 403 says 'insufficient scopes'."""
+    url = "https://oauth2.googleapis.com/tokeninfo?access_token=" + urllib.parse.quote(access_token)
+    with urllib.request.urlopen(urllib.request.Request(url), timeout=20) as r:
+        return json.loads(r.read())
+
+
 def _list_spaces(token, name_has="ORDER REPORT"):
     out, page = [], ""
     while True:
@@ -102,6 +110,13 @@ def sync(report):
     except Exception as e:  # noqa: BLE001
         report.setdefault("errors", []).append(f"chat token: {e}")
         return
+
+    try:
+        info = _tokeninfo(token)
+        report["token_scopes"] = info.get("scope", "")
+        report["token_client"] = info.get("aud", "")
+    except Exception as e:  # noqa: BLE001
+        report["token_scopes"] = f"(tokeninfo failed: {e})"
 
     try:
         spaces = _list_spaces(token)
