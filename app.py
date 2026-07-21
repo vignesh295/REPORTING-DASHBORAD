@@ -232,6 +232,35 @@ def shipment_sync():
     return redirect(url_for("shipment"))
 
 
+@app.route("/shipment/order-reports", methods=["POST"])
+@auth.role_required("admin")
+def shipment_order_reports():
+    """Pull the latest order reports from the Google Chat 'ORDER REPORT' spaces,
+    split them, and refresh the RED/YELLOW sheets. Reports back what it saw so a
+    no-op run is self-explanatory."""
+    import chat_reports
+    rep = {}
+    try:
+        chat_reports.sync(rep)
+    except Exception as e:  # noqa: BLE001
+        traceback.print_exc()
+        flash(f"Order-report sync failed: {e}", "error")
+        return redirect(url_for("shipment"))
+    processed = rep.get("chat_processed", [])
+    spaces = rep.get("chat_spaces", [])
+    if processed:
+        lanes = ", ".join(f"{p['lane']} ({p['red']}R/{p['yellow']}Y)" for p in processed)
+        msg = f"Order reports synced from Chat — {len(processed)} lane(s): {lanes}."
+    else:
+        msg = (f"No order reports processed. Spaces found: {spaces or 'none'}. "
+               f"Files seen: {rep.get('chat_files_seen') or 'none'}.")
+    if rep.get("errors"):
+        flash(msg + " Errors: " + " | ".join(rep["errors"][:3]), "error")
+    else:
+        flash(msg, "success" if processed else "error")
+    return redirect(url_for("shipment"))
+
+
 @app.route("/api/shipment/notify", methods=["POST"])
 def api_shipment_notify():
     """Drive-folder Apps Script pings this with a new file's id; the app pulls
