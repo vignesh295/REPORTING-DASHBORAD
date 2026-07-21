@@ -152,7 +152,7 @@ def sync(report):
         return
     report["chat_spaces"] = [s["displayName"] for s in spaces]
 
-    seen_files, newest = [], {}   # lane -> (createTime, name, attachment)
+    seen_files, unmatched, newest = [], [], {}   # lane -> (createTime, name, attachment)
     for sp in spaces:
         try:
             msgs = _list_messages(token, sp["name"])
@@ -173,10 +173,12 @@ def sync(report):
                 seen_files.append(name)
                 lane = splitter.lane_from_filename(name, config.LANES)
                 if not lane:
+                    unmatched.append(name)
                     continue
                 if lane not in newest or ct > newest[lane][0]:
                     newest[lane] = (ct, name, att)
     report["chat_files_seen"] = seen_files
+    report["chat_unmatched"] = sorted(set(unmatched))
 
     for lane, (_ct, name, att) in newest.items():
         try:

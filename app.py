@@ -248,16 +248,20 @@ def buy_ship_pull_reports():
         return redirect(url_for("buy_ship_left"))
     processed = rep.get("chat_processed", [])
     missing = rep.get("lanes_missing_today", [])
+    unmatched = rep.get("chat_unmatched", [])
     if processed:
         lanes = ", ".join(f"{p['lane']} ({p['red']}R/{p['yellow']}Y)" for p in processed)
         msg = f"Today's order reports synced — {len(processed)} lane(s): {lanes}."
         if missing:
             msg += " No report today for: " + ", ".join(missing) + "."
+        if unmatched:
+            msg += " Unmapped files (tell me their lanes): " + ", ".join(unmatched[:8]) + "."
     else:
-        msg = (f"No order reports for today. Token client: {rep.get('token_client', '?')}. "
+        msg = (f"No order reports mapped for today. Token client: {rep.get('token_client', '?')}. "
                f"Token scopes: {rep.get('token_scopes', '?')}. "
                f"Spaces: {rep.get('chat_spaces') or 'none'}. "
-               f"Today's files: {rep.get('chat_files_seen') or 'none'}.")
+               f"Today's files: {rep.get('chat_files_seen') or 'none'}. "
+               f"Unmapped: {unmatched[:12] or 'none'}.")
     if rep.get("errors"):
         flash(msg + " Errors: " + " | ".join(rep["errors"][:3]), "error")
     else:

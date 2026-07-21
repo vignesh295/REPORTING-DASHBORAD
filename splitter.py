@@ -38,9 +38,14 @@ def _match(lanes, target):
     return next((l for l in lanes if l.replace(" ", "").upper() == t), None)
 
 
+_SKIP_LANES = {"UK → USA"}   # explicitly left out per ops
+
+
 def _skip_lane(lane):
-    """UK-destination lanes are intentionally not processed here."""
-    return lane.split("→")[-1].strip().upper() == "UK"
+    """UK-destination lanes (and UK → USA) are intentionally not processed here."""
+    if lane.split("→")[-1].strip().upper() == "UK":
+        return True
+    return lane in _SKIP_LANES
 
 
 def lane_from_filename(name, lanes):
