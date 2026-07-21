@@ -20,12 +20,6 @@ import config
 import splitter
 
 CHAT = "https://chat.googleapis.com/v1"
-_SCOPES = [
-    "https://www.googleapis.com/auth/chat.spaces.readonly",
-    "https://www.googleapis.com/auth/chat.messages.readonly",
-    "https://www.googleapis.com/auth/gmail.send",
-    "https://www.googleapis.com/auth/drive.readonly",
-]
 
 
 def configured():
@@ -36,11 +30,13 @@ def configured():
 def _access_token():
     from google.oauth2.credentials import Credentials
     from google.auth.transport.requests import Request
+    # No `scopes=` — on a refresh_token grant, passing scopes the token wasn't
+    # granted returns invalid_scope. The access token inherits the token's own
+    # granted scopes (chat.*, drive.readonly, gmail.send from the consent).
     creds = Credentials(
         token=None, refresh_token=config.GMAIL_REFRESH_TOKEN,
         token_uri="https://oauth2.googleapis.com/token",
-        client_id=config.GMAIL_CLIENT_ID, client_secret=config.GMAIL_CLIENT_SECRET,
-        scopes=_SCOPES)
+        client_id=config.GMAIL_CLIENT_ID, client_secret=config.GMAIL_CLIENT_SECRET)
     creds.refresh(Request())
     return creds.token
 
