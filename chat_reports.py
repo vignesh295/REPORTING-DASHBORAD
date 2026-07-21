@@ -125,6 +125,25 @@ def _download(att, token):
     return name, None
 
 
+def _expand(name, data):
+    """Yield (inner_name, bytes) for a download — extracting .xlsx/.xlsm out of a
+    .zip (some lanes, e.g. USA, arrive zipped), else the file itself."""
+    if name.lower().endswith(".zip"):
+        import io
+        import zipfile
+        out = []
+        try:
+            with zipfile.ZipFile(io.BytesIO(data)) as zf:
+                for n in zf.namelist():
+                    base = n.split("/")[-1]
+                    if base.lower().endswith((".xlsx", ".xlsm")) and not n.startswith("__MACOSX"):
+                        out.append((base, zf.read(n)))
+        except Exception:  # noqa: BLE001  (not a valid zip)
+            pass
+        return out
+    return [(name, data)]
+
+
 def sync(report):
     """Find + process the newest order-report file per lane across the ORDER REPORT
     Chat spaces. Fills `report` with diagnostics so a no-op run explains itself."""
@@ -152,7 +171,8 @@ def sync(report):
         return
     report["chat_spaces"] = [s["displayName"] for s in spaces]
 
-    seen_files, unmatched, newest = [], [], {}   # lane -> (createTime, name, attachment)
+    # collect today's candidate attachments (.xlsx/.xlsm/.zip named ORDER REPORT)
+    cands = {}   # name -> (createTime, name, attachment)  (dedup by filename, newest ct)
     for sp in spaces:
         try:
             msgs = _list_messages(token, sp["name"])
@@ -164,31 +184,42 @@ def sync(report):
             ct = msg.get("createTime", "")
             for att in _attachments(msg):
                 name = att.get("contentName") or att.get("name") or ""
-                if not name.lower().endswith((".xlsx", ".xlsm")):
+                if not name.lower().endswith((".xlsx", ".xlsm", ".zip")):
                     continue
                 if "ORDER REPORT" not in name.upper():
                     continue
                 if not _is_today(name, ct):    # only today's uploads, not the whole history
                     continue
-                seen_files.append(name)
-                lane = splitter.lane_from_filename(name, config.LANES)
-                if not lane:
-                    unmatched.append(name)
-                    continue
-                if lane not in newest or ct > newest[lane][0]:
-                    newest[lane] = (ct, name, att)
-    report["chat_files_seen"] = seen_files
-    report["chat_unmatched"] = sorted(set(unmatched))
+                if name not in cands or ct > cands[name][0]:
+                    cands[name] = (ct, name, att)
 
-    for lane, (_ct, name, att) in newest.items():
+    # download, expand any zips, map each file to a lane, keep the newest per lane
+    seen_files, unmatched, newest = [], [], {}   # lane -> (ct, inner_name, bytes)
+    for ct, name, att in cands.values():
         try:
             _n, data = _download(att, token)
-            if not data:
-                report.setdefault("errors", []).append(f"chat {name}: no downloadable data")
+        except Exception as e:  # noqa: BLE001
+            report.setdefault("errors", []).append(f"chat {name}: {e}")
+            continue
+        if not data:
+            continue
+        for inner_name, inner_bytes in _expand(name, data):
+            seen_files.append(inner_name)
+            lane = (splitter.lane_from_filename(inner_name, config.LANES)
+                    or splitter.lane_from_filename(name, config.LANES))
+            if not lane:
+                unmatched.append(inner_name)
                 continue
-            ext = os.path.splitext(name)[1].lower() or ".xlsx"
+            if lane not in newest or ct > newest[lane][0]:
+                newest[lane] = (ct, inner_name, inner_bytes)
+    report["chat_files_seen"] = sorted(set(seen_files))
+    report["chat_unmatched"] = sorted(set(unmatched))
+
+    for lane, (_ct, inner_name, inner_bytes) in newest.items():
+        try:
+            ext = os.path.splitext(inner_name)[1].lower() or ".xlsx"
             tmp = tempfile.NamedTemporaryFile(delete=False, suffix=ext)
-            tmp.write(data)
+            tmp.write(inner_bytes)
             tmp.close()
             try:
                 res = splitter.process_order_report(tmp.name)
@@ -198,14 +229,14 @@ def sync(report):
                 except OSError:
                     pass
             if res.get("error"):
-                report.setdefault("errors", []).append(f"{name}: {res['error']}")
+                report.setdefault("errors", []).append(f"{inner_name}: {res['error']}")
                 continue
             report.setdefault("chat_processed", []).append({
-                "lane": lane, "file": name,
+                "lane": lane, "file": inner_name,
                 "red": res.get("red"), "yellow": res.get("yellow"),
                 "history": res.get("history_added")})
         except Exception as e:  # noqa: BLE001
-            report.setdefault("errors", []).append(f"chat {name}: {e}")
+            report.setdefault("errors", []).append(f"chat {inner_name}: {e}")
 
     # lanes that have a known Chat code but got no report today
     expected = [l for l in config.LANES if l in set(splitter._CODE_LANES.values())]
