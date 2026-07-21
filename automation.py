@@ -173,7 +173,7 @@ def _awb_index():
     """Read the AWB sheet ONCE -> {awb: {status, tab, delivered(bool), delivered_date}}.
     Skips ADMIN / LANE CONFIG / SHIPPED / FBA tabs and repeated 'MASTER AWB' header
     rows. Shared by delivery-polling and the shipment log so we read the sheet once."""
-    idx = {}
+    idx, checks = {}, {}
     if not (config.AWB_SHEET_ID and config.has_service_account()):
         return idx
     import sheets
@@ -194,6 +194,9 @@ def _awb_index():
         ai, si = H.index("MASTER AWB"), H.index("TRACKING STATUS VIA API")
         pi = H.index("PROJECT NAME") if "PROJECT NAME" in H else -1
         di = H.index("DELIVERED DATE") if "DELIVERED DATE" in H else -1
+        # columns for the SYSTEM UPDATE check (may not exist on every tab)
+        aui = next((i for i, h in enumerate(H) if "AMAZON TRACKING ID UPDATED" in h), -1)
+        mi = next((i for i, h in enumerate(H) if "MATCH" in h), -1)
         for r in vals[1:]:
             awb = _norm(r[ai]) if ai < len(r) else ""
             if not awb or awb.upper() == "MASTER AWB":  # skip blanks + repeated headers
@@ -205,11 +208,23 @@ def _awb_index():
             prev = idx.get(awb)
             # delivery is monotonic: never let a later non-delivered row for the
             # same AWB (e.g. a duplicate in another tab) overwrite a delivered one.
-            if prev and prev.get("delivered") and not delivered:
-                continue
-            idx[awb] = {"status": status, "tab": ws.title, "project": proj,
-                        "delivered": delivered,
-                        "delivered_date": dd or (prev or {}).get("delivered_date", "")}
+            if not (prev and prev.get("delivered") and not delivered):
+                idx[awb] = {"status": status, "tab": ws.title, "project": proj,
+                            "delivered": delivered,
+                            "delivered_date": dd or (prev or {}).get("delivered_date", "")}
+            # aggregate the per-row tracking check across ALL rows of this AWB
+            au_ok = bool(_norm(r[aui])) if 0 <= aui < len(r) else False
+            mval = _norm(r[mi]).upper() if 0 <= mi < len(r) else ""
+            m_ok = "MATCH" in mval and "UNMATCH" not in mval
+            c = checks.setdefault(awb, {"au": True, "match": True, "n": 0, "cols": False})
+            c["n"] += 1
+            c["cols"] = c["cols"] or (aui >= 0 and mi >= 0)
+            c["au"] = c["au"] and au_ok
+            c["match"] = c["match"] and m_ok
+    for awb, c in checks.items():
+        if awb in idx:
+            idx[awb]["amazon_updated_all"] = bool(c["cols"] and c["n"] and c["au"])
+            idx[awb]["tracking_match_all"] = bool(c["cols"] and c["n"] and c["match"])
     return idx
 
 
@@ -253,9 +268,12 @@ def _parse_date(s):
     return None
 
 
-def _log_records(idx):
+def _log_records(idx, actions=None):
     """Build one SHIPMENT LOGS row per stored manifest, enriched with the AWB
-    sheet's status/route and whether the Amazon file has been generated."""
+    sheet's status/route and whether the Amazon file has been generated. `actions`
+    is {awb: action-cell} from the log sheet — SYSTEM UPDATE is computed only for
+    AWBs whose action is 'UPDATED'. IND -> USA shipments are excluded."""
+    actions = actions or {}
     records = []
     for awb, m in shipment_store.manifests().items():
         rows = m.get("rows", [])
@@ -283,20 +301,31 @@ def _log_records(idx):
                     last_ship = v
                     break
         info = idx.get(awb, {})
+        project = info.get("tab") or m.get("project") or ""
+        # per ops: don't log IND -> USA shipments
+        if project.upper().replace("→", "TO").replace(" ", "") in ("INDTOUSA", "INDIATOUSA"):
+            continue
         if shipment_store.get_generated(awb):
             update_status = "Amazon file generated"
         elif info.get("delivered"):
             update_status = "Delivered — processing"
         else:
             update_status = "Awaiting delivery"
+        # SYSTEM UPDATE: only once ops marks 'action' = UPDATED. YES when the AWB
+        # sheet shows Amazon-tracking updated AND tracking MATCH on all its rows.
+        system_update = ""
+        if (actions.get(awb, "") or "").strip().upper() == "UPDATED":
+            system_update = "YES" if (info.get("amazon_updated_all")
+                                      and info.get("tracking_match_all")) else "NO"
         records.append({
-            "project": info.get("tab") or m.get("project") or "",
+            "project": project,
             "AWB SHIP DATE": awb_ship,
             "awb": awb,
             "number of orders": n_orders,
             "awb status": info.get("status", ""),
             "last ship date": last_ship,
             "shipment update status": update_status,
+            "SYSTEM UPDATE": system_update,
         })
     return records
 
@@ -305,7 +334,8 @@ def _update_shipment_log(report, idx):
     if not (config.SHIPMENT_LOG_SHEET_ID and config.has_service_account()):
         return
     import shipment_log
-    updated, added = shipment_log.upsert(_log_records(idx))
+    actions = shipment_log.current_actions()
+    updated, added = shipment_log.upsert(_log_records(idx, actions))
     report["log_updated"] = updated
     report["log_added"] = added
 

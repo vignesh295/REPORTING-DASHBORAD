@@ -11,7 +11,7 @@ import config
 import sheets
 
 HEADERS = ["project", "AWB SHIP DATE", "awb", "number of orders", "awb status",
-           "last ship date", "shipment update status", "link"]
+           "last ship date", "shipment update status", "link", "SYSTEM UPDATE"]
 
 
 def _nh(h):
@@ -29,6 +29,26 @@ def _col_letter(n):
 
 def _worksheet():
     return sheets.client().open_by_key(config.SHIPMENT_LOG_SHEET_ID).sheet1
+
+
+def current_actions():
+    """{awb: action-cell} from the log sheet's 'action' column (ops-edited), used
+    to gate the SYSTEM UPDATE check. Returns {} if the sheet/columns aren't there."""
+    if not (config.SHIPMENT_LOG_SHEET_ID and config.has_service_account()):
+        return {}
+    vals = _worksheet().get_all_values()
+    if not vals:
+        return {}
+    hmap = {_nh(h): i for i, h in enumerate(vals[0])}
+    ai, xi = hmap.get("awb"), hmap.get("action")
+    if ai is None or xi is None:
+        return {}
+    out = {}
+    for r in vals[1:]:
+        awb = r[ai].strip() if ai < len(r) else ""
+        if awb:
+            out[awb] = r[xi].strip() if xi < len(r) else ""
+    return out
 
 
 def upsert(records):
