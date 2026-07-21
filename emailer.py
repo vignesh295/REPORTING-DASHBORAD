@@ -226,11 +226,8 @@ def render_daily_summary(rows, totals, date_label=""):
                 f"<td style='{ncell}'>{buy_ship}</td></tr>")
     total_ns = totals.get("yellow_today", 0)
     total_bs = totals.get("red_today", 0)
-    not_uploaded = totals.get("not_uploaded", [])
-    nu_html = ""
-    if not_uploaded:
-        nu_html = ('<p style="margin:16px 0 4px;color:#b91c1c">'
-                   '<b>Order report not uploaded today for:</b> ' + ", ".join(not_uploaded) + '.</p>')
+    note = ("This is an automatically generated message from Trishoolin Ops "
+            "— please do not reply.")
     html = f"""<div style="font-family:Arial,Helvetica,sans-serif;color:#1f2937;font-size:14px">
   <h2 style="margin:0 0 10px">Daily Pending Shipment Status by Lane</h2>
   <p style="margin:0 0 4px">Hi Team,</p>
@@ -249,22 +246,19 @@ def render_daily_summary(rows, totals, date_label=""):
       </tr>
     </tbody>
   </table>
-  {nu_html}
   <p style="margin:16px 0 4px">Kindly review the pending orders for your respective lanes and ensure they
      are processed at the earliest. If there are any blockers or delays, please inform the team immediately.</p>
   <p style="margin:10px 0 0">Thank you.</p>
+  <p style="margin:16px 0 0;color:#9ca3af;font-size:12px;font-style:italic">{note}</p>
 </div>"""
     lines = "\n".join(f"  {r.get('lane',''):<12} not shipped: {r.get('yellow_today',0):>4}   "
                       f"buy ship pending: {r.get('red_today',0):>4}" for r in rows)
-    nu_text = ("\n\nOrder report NOT uploaded today for: " + ", ".join(not_uploaded) + "."
-               if not_uploaded else "")
     text = ("Daily Pending Shipment Status by Lane\n\nHi Team,\n\n"
             "Please find today's pending shipment status by lane below:\n\n"
-            f"{lines}\n  {'TOTAL':<12} not shipped: {total_ns:>4}   buy ship pending: {total_bs:>4}"
-            f"{nu_text}\n\n"
+            f"{lines}\n  {'TOTAL':<12} not shipped: {total_ns:>4}   buy ship pending: {total_bs:>4}\n\n"
             "Kindly review the pending orders for your respective lanes and ensure they are processed "
             "at the earliest. If there are any blockers or delays, please inform the team immediately.\n\n"
-            "Thank you.")
+            f"Thank you.\n\n— {note}")
     subject = (f"Daily Pending Shipment Status by Lane{(' — ' + date_label) if date_label else ''}: "
                f"{total_ns} not shipped / {total_bs} buy-ship pending")
     return subject, text, html

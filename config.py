@@ -17,8 +17,8 @@ load_dotenv()
 
 SETTINGS_FILE = os.getenv("SETTINGS_FILE", "settings.json")
 
-DEFAULT_LANES = ("Lane 1,Lane 2,Lane 3,Lane 4,Lane 5,"
-                 "Lane 6,Lane 7,Lane 8,Lane 9,Lane 10")
+DEFAULT_LANES = ("India → USA,India → UK,India → AUS,India → UAE,"
+                 "USA → UK,USA → AUS,USA → UAE,UK → USA,UK → AUS,UK → UAE")
 
 
 def _list(name, default=""):
