@@ -9,8 +9,10 @@ Uses the same OAuth refresh token as Gmail send — it must have been consented
 with the chat.spaces.readonly + chat.messages.readonly scopes (and drive.readonly
 for reports attached from Drive).
 """
+import datetime
 import json
 import os
+import re
 import tempfile
 import urllib.error
 import urllib.parse
@@ -20,6 +22,29 @@ import config
 import splitter
 
 CHAT = "https://chat.googleapis.com/v1"
+_IST = datetime.timezone(datetime.timedelta(hours=5, minutes=30))
+
+
+def _is_today(name, create_time):
+    """True if this report is from today (IST) — by the dd.mm.yyyy in the file
+    name, or the Chat message's post time. Keeps us from reprocessing the space's
+    whole history (hundreds of old files)."""
+    today = datetime.datetime.now(_IST).date()
+    m = re.search(r"(\d{1,2})\.(\d{1,2})\.(\d{4})", name or "")
+    if m:
+        try:
+            if datetime.date(int(m.group(3)), int(m.group(2)), int(m.group(1))) == today:
+                return True
+        except ValueError:
+            pass
+    if create_time:
+        try:
+            dt = datetime.datetime.fromisoformat(create_time.replace("Z", "+00:00"))
+            if dt.astimezone(_IST).date() == today:
+                return True
+        except ValueError:
+            pass
+    return False
 
 
 def configured():
@@ -143,6 +168,8 @@ def sync(report):
                     continue
                 if "ORDER REPORT" not in name.upper():
                     continue
+                if not _is_today(name, ct):    # only today's uploads, not the whole history
+                    continue
                 seen_files.append(name)
                 lane = splitter.lane_from_filename(name, config.LANES)
                 if not lane:
@@ -177,3 +204,8 @@ def sync(report):
                 "history": res.get("history_added")})
         except Exception as e:  # noqa: BLE001
             report.setdefault("errors", []).append(f"chat {name}: {e}")
+
+    # lanes that have a known Chat code but got no report today
+    expected = [l for l in config.LANES if l in set(splitter._CODE_LANES.values())]
+    updated = {p["lane"] for p in report.get("chat_processed", [])}
+    report["lanes_missing_today"] = [l for l in expected if l not in updated]

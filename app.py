@@ -232,12 +232,12 @@ def shipment_sync():
     return redirect(url_for("shipment"))
 
 
-@app.route("/shipment/order-reports", methods=["POST"])
+@app.route("/buy-ship-left/pull-reports", methods=["POST"])
 @auth.role_required("admin")
-def shipment_order_reports():
-    """Pull the latest order reports from the Google Chat 'ORDER REPORT' spaces,
-    split them, and refresh the RED/YELLOW sheets. Reports back what it saw so a
-    no-op run is self-explanatory."""
+def buy_ship_pull_reports():
+    """Pull today's order reports from the Google Chat 'ORDER REPORT' spaces,
+    split them, and refresh the RED/YELLOW sheets. Reports what it saw so a no-op
+    run is self-explanatory, and flags lanes with no report today."""
     import chat_reports
     rep = {}
     try:
@@ -245,21 +245,24 @@ def shipment_order_reports():
     except Exception as e:  # noqa: BLE001
         traceback.print_exc()
         flash(f"Order-report sync failed: {e}", "error")
-        return redirect(url_for("shipment"))
+        return redirect(url_for("buy_ship_left"))
     processed = rep.get("chat_processed", [])
-    spaces = rep.get("chat_spaces", [])
+    missing = rep.get("lanes_missing_today", [])
     if processed:
         lanes = ", ".join(f"{p['lane']} ({p['red']}R/{p['yellow']}Y)" for p in processed)
-        msg = f"Order reports synced from Chat — {len(processed)} lane(s): {lanes}."
+        msg = f"Today's order reports synced — {len(processed)} lane(s): {lanes}."
+        if missing:
+            msg += " No report today for: " + ", ".join(missing) + "."
     else:
-        msg = (f"No order reports processed. Token client: {rep.get('token_client', '?')}. "
+        msg = (f"No order reports for today. Token client: {rep.get('token_client', '?')}. "
                f"Token scopes: {rep.get('token_scopes', '?')}. "
-               f"Spaces found: {spaces or 'none'}. Files seen: {rep.get('chat_files_seen') or 'none'}.")
+               f"Spaces: {rep.get('chat_spaces') or 'none'}. "
+               f"Today's files: {rep.get('chat_files_seen') or 'none'}.")
     if rep.get("errors"):
         flash(msg + " Errors: " + " | ".join(rep["errors"][:3]), "error")
     else:
         flash(msg, "success" if processed else "error")
-    return redirect(url_for("shipment"))
+    return redirect(url_for("buy_ship_left"))
 
 
 @app.route("/api/shipment/notify", methods=["POST"])

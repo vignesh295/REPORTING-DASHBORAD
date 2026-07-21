@@ -153,11 +153,11 @@ def reload():
     RESEND_API_KEY = s["RESEND_API_KEY"] if "RESEND_API_KEY" in s else os.getenv("RESEND_API_KEY", "")
     EMAIL_FROM = s["EMAIL_FROM"] if "EMAIL_FROM" in s else os.getenv("EMAIL_FROM", "")
     BREVO_API_KEY = s["BREVO_API_KEY"] if "BREVO_API_KEY" in s else os.getenv("BREVO_API_KEY", "")
-    GMAIL_CLIENT_ID = s["GMAIL_CLIENT_ID"] if "GMAIL_CLIENT_ID" in s else os.getenv("GMAIL_CLIENT_ID", "")
-    GMAIL_CLIENT_SECRET = s["GMAIL_CLIENT_SECRET"] if "GMAIL_CLIENT_SECRET" in s \
-        else os.getenv("GMAIL_CLIENT_SECRET", "")
-    GMAIL_REFRESH_TOKEN = s["GMAIL_REFRESH_TOKEN"] if "GMAIL_REFRESH_TOKEN" in s \
-        else os.getenv("GMAIL_REFRESH_TOKEN", "")
+    # Settings value wins if non-empty, else the env var (so credentials can live
+    # in Render env vars and a blank Settings field falls through to them).
+    GMAIL_CLIENT_ID = s.get("GMAIL_CLIENT_ID") or os.getenv("GMAIL_CLIENT_ID") or ""
+    GMAIL_CLIENT_SECRET = s.get("GMAIL_CLIENT_SECRET") or os.getenv("GMAIL_CLIENT_SECRET") or ""
+    GMAIL_REFRESH_TOKEN = s.get("GMAIL_REFRESH_TOKEN") or os.getenv("GMAIL_REFRESH_TOKEN") or ""
     AWB_API_TOKEN = s["AWB_API_TOKEN"] if "AWB_API_TOKEN" in s else os.getenv("AWB_API_TOKEN", "")
     # These fall back to a built-in default when unset/blank (so a wiped DB or a
     # fresh deploy still works); a non-empty Settings/env value overrides.
