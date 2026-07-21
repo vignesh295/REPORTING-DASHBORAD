@@ -82,8 +82,10 @@ def _sync_drive(report):
     if not (config.DRIVE_FOLDER_ID and config.has_service_account()):
         return
     import drive
+    ingested = shipment_store.ingested_files()   # one load
+    to_store = []
     for f in drive.list_data_files(config.DRIVE_FOLDER_ID):
-        if shipment_store.already_ingested(f["id"]):
+        if f["id"] in ingested:
             continue
         try:
             data, ext = drive.download(f["id"], f["mimeType"], f["name"])
@@ -103,15 +105,19 @@ def _sync_drive(report):
             if groups:
                 # one manifest per real AWB in the file (a file may hold several)
                 for awb, grp in groups.items():
-                    shipment_store.store_manifest(awb, project, grp, f["id"], f["name"])
+                    to_store.append({"awb": awb, "project": project, "rows": grp,
+                                     "file_id": f["id"], "source_name": f["name"]})
                 report["awbs_ingested"] = report.get("awbs_ingested", 0) + len(groups)
             else:
                 # no AWB column — fall back to the filename AWB so nothing is lost
-                shipment_store.store_manifest(fname_awb, project, rows, f["id"], f["name"])
+                to_store.append({"awb": fname_awb, "project": project, "rows": rows,
+                                 "file_id": f["id"], "source_name": f["name"]})
             report["files_pulled"] += 1
         except Exception as e:  # noqa: BLE001
             traceback.print_exc()
             report["errors"].append(f"pull {f.get('name')}: {e}")
+    if to_store:
+        shipment_store.store_manifests_bulk(to_store)   # one save
 
 
 def _awb_index():
@@ -159,12 +165,15 @@ def _awb_index():
 
 
 def _poll_awb_deliveries(report, idx):
+    entries = []
     for awb, info in idx.items():
         if info.get("delivered"):
             # prefer an explicit PROJECT NAME cell, fall back to the tab name
             dest = _dest(info.get("project") or info.get("tab") or "")
-            shipment_store.set_delivered(awb, dest, info.get("delivered_date", ""))
-            report["delivered_seen"] += 1
+            entries.append((awb, dest, info.get("delivered_date", "")))
+    if entries:
+        shipment_store.set_delivered_bulk(entries)   # one save, not one per AWB
+    report["delivered_seen"] += len(entries)
 
 
 # ---------------------------------------------------------------------------

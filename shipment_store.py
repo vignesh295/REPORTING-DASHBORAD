@@ -60,6 +60,11 @@ def already_ingested(file_id):
     return file_id in _load().get("files", [])
 
 
+def ingested_files():
+    """The set of Drive file-ids already processed (one load, for bulk sync)."""
+    return set(_load().get("files", []))
+
+
 # ---- Manifests (per AWB) ---------------------------------------------------
 def store_manifest(awb, project, rows, file_id=None, source_name=""):
     """Save/replace an AWB's shipment manifest rows. Keyed by AWB when we have
@@ -77,6 +82,30 @@ def store_manifest(awb, project, rows, file_id=None, source_name=""):
         data["files"].append(file_id)
     _save(data)
     return key, len(rows)
+
+
+def store_manifests_bulk(items):
+    """Store many manifests with a SINGLE load+save (avoids one DB round-trip per
+    AWB on the network-backed store). items: dicts with awb, project, rows,
+    file_id, source_name."""
+    if not items:
+        return 0
+    data = _load()
+    for it in items:
+        awb = str(it.get("awb", "")).strip()
+        key = awb or f"file:{it.get('source_name') or it.get('file_id')}"
+        data["manifests"][key] = {
+            "awb": awb,
+            "project": str(it.get("project", "")).strip(),
+            "source": it.get("source_name", ""),
+            "received": _now(),
+            "rows": it.get("rows", []),
+        }
+        fid = it.get("file_id")
+        if fid and fid not in data["files"]:
+            data["files"].append(fid)
+    _save(data)
+    return len(items)
 
 
 def get_manifest(key):
@@ -135,6 +164,26 @@ def set_delivered(awb, dest="", delivered_date=""):
                 "seen": _now()})
     data["delivered"][awb] = rec
     _save(data)
+
+
+def set_delivered_bulk(entries):
+    """Mark many AWBs delivered with a SINGLE load+save. entries: iterable of
+    (awb, dest, delivered_date). This is the hot path — the AWB sheet can have
+    hundreds of delivered rows, and one DB write per row would time out."""
+    data = _load()
+    n = 0
+    for awb, dest, dd in entries:
+        awb = str(awb).strip()
+        if not awb:
+            continue
+        rec = data["delivered"].get(awb, {})
+        rec.update({"dest": dest or rec.get("dest", ""),
+                    "delivered_date": dd or rec.get("delivered_date", ""),
+                    "seen": _now()})
+        data["delivered"][awb] = rec
+        n += 1
+    _save(data)
+    return n
 
 
 def delivered():
