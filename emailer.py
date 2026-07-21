@@ -32,21 +32,23 @@ except Exception:  # pragma: no cover
 # ---------------------------------------------------------------------------
 # Transport — Resend (HTTP) preferred, SMTP fallback
 # ---------------------------------------------------------------------------
-def _deliver(subject, text, html=None, attachments=None):
+def _deliver(subject, text, html=None, attachments=None, recipients=None):
     """Send an email. attachments: list of {'filename','content'} (content=str).
+    `recipients` overrides config.EMAIL_RECIPIENTS for this send.
     Returns 'sent' | 'disabled' | 'not-configured'; raises on a send failure."""
     if not config.EMAIL_ENABLED:
         return "disabled"
-    if not config.EMAIL_RECIPIENTS:
+    recipients = list(recipients) if recipients else list(config.EMAIL_RECIPIENTS)
+    if not recipients:
         return "not-configured"
     if config.GMAIL_CLIENT_ID and config.GMAIL_CLIENT_SECRET and config.GMAIL_REFRESH_TOKEN:
-        return _deliver_gmail_api(subject, text, html, attachments)
+        return _deliver_gmail_api(subject, text, html, attachments, recipients)
     if config.BREVO_API_KEY and config.EMAIL_FROM:
-        return _deliver_brevo(subject, text, html, attachments)
+        return _deliver_brevo(subject, text, html, attachments, recipients)
     if config.RESEND_API_KEY and config.EMAIL_FROM:
-        return _deliver_resend(subject, text, html, attachments)
+        return _deliver_resend(subject, text, html, attachments, recipients)
     if config.SMTP_SENDER and config.SMTP_APP_PASSWORD:
-        return _deliver_smtp(subject, text, html, attachments)
+        return _deliver_smtp(subject, text, html, attachments, recipients)
     return "not-configured"
 
 
@@ -74,7 +76,7 @@ def _gmail_access_token():
     return creds.token
 
 
-def _deliver_gmail_api(subject, text, html, attachments):
+def _deliver_gmail_api(subject, text, html, attachments, recipients):
     token = _gmail_access_token()
     outer = MIMEMultipart("mixed")
     alt = MIMEMultipart("alternative")
@@ -92,7 +94,7 @@ def _deliver_gmail_api(subject, text, html, attachments):
     outer["Subject"] = subject
     if config.EMAIL_FROM:            # else Gmail uses the authorised account's address
         outer["From"] = config.EMAIL_FROM
-    outer["To"] = ", ".join(config.EMAIL_RECIPIENTS)
+    outer["To"] = ", ".join(recipients)
     # RFC 5322 bytes -> base64url in the Gmail Message.raw field (use as_bytes so
     # UTF-8 content encodes correctly).
     raw = base64.urlsafe_b64encode(outer.as_bytes()).decode("ascii")
@@ -111,10 +113,10 @@ def _deliver_gmail_api(subject, text, html, attachments):
     raise RuntimeError("Gmail API: " + json.dumps(resp))
 
 
-def _deliver_brevo(subject, text, html, attachments):
+def _deliver_brevo(subject, text, html, attachments, recipients):
     sender = {"email": config.EMAIL_FROM, "name": "Trishoolin Ops"}
     payload = {"sender": sender,
-               "to": [{"email": r} for r in config.EMAIL_RECIPIENTS],
+               "to": [{"email": r} for r in recipients],
                "subject": subject}
     if html:
         payload["htmlContent"] = html
@@ -142,8 +144,8 @@ def _deliver_brevo(subject, text, html, attachments):
     raise RuntimeError("Brevo: " + json.dumps(resp))
 
 
-def _deliver_resend(subject, text, html, attachments):
-    payload = {"from": config.EMAIL_FROM, "to": list(config.EMAIL_RECIPIENTS),
+def _deliver_resend(subject, text, html, attachments, recipients):
+    payload = {"from": config.EMAIL_FROM, "to": list(recipients),
                "subject": subject}
     if text:
         payload["text"] = text
@@ -171,7 +173,7 @@ def _deliver_resend(subject, text, html, attachments):
     raise RuntimeError("Resend: " + json.dumps(resp))
 
 
-def _deliver_smtp(subject, text, html, attachments):
+def _deliver_smtp(subject, text, html, attachments, recipients):
     outer = MIMEMultipart("mixed")
     alt = MIMEMultipart("alternative")
     if text:
@@ -185,10 +187,10 @@ def _deliver_smtp(subject, text, html, attachments):
         outer.attach(part)
     outer["Subject"] = subject
     outer["From"] = config.SMTP_SENDER
-    outer["To"] = ", ".join(config.EMAIL_RECIPIENTS)
+    outer["To"] = ", ".join(recipients)
     with smtplib.SMTP_SSL(config.SMTP_HOST, config.SMTP_PORT, timeout=20) as server:
         server.login(config.SMTP_SENDER, config.SMTP_APP_PASSWORD)
-        server.sendmail(config.SMTP_SENDER, config.EMAIL_RECIPIENTS, outer.as_string())
+        server.sendmail(config.SMTP_SENDER, recipients, outer.as_string())
     return "sent"
 
 
@@ -208,7 +210,7 @@ def send_test_email():
     return _deliver("Trishoolin Ops — test email (system is working)", text, html)
 
 
-def send_daily_summary(rows, totals, date_label=""):
+def send_daily_summary(rows, totals, date_label="", recipients=None):
     """Daily 'Pending Shipment Status by Lane' email. `rows` = per-lane dicts with
     lane, red_today, yellow_today (from store.dashboard_rows()). Mapping:
       Orders Not Shipped Today = yellow (due today, not shipped)
@@ -224,6 +226,11 @@ def send_daily_summary(rows, totals, date_label=""):
                 f"<td style='{ncell}'>{buy_ship}</td></tr>")
     total_ns = totals.get("yellow_today", 0)
     total_bs = totals.get("red_today", 0)
+    not_uploaded = totals.get("not_uploaded", [])
+    nu_html = ""
+    if not_uploaded:
+        nu_html = ('<p style="margin:16px 0 4px;color:#b91c1c">'
+                   '<b>Order report not uploaded today for:</b> ' + ", ".join(not_uploaded) + '.</p>')
     html = f"""<div style="font-family:Arial,Helvetica,sans-serif;color:#1f2937;font-size:14px">
   <h2 style="margin:0 0 10px">Daily Pending Shipment Status by Lane</h2>
   <p style="margin:0 0 4px">Hi Team,</p>
@@ -242,21 +249,25 @@ def send_daily_summary(rows, totals, date_label=""):
       </tr>
     </tbody>
   </table>
+  {nu_html}
   <p style="margin:16px 0 4px">Kindly review the pending orders for your respective lanes and ensure they
      are processed at the earliest. If there are any blockers or delays, please inform the team immediately.</p>
   <p style="margin:10px 0 0">Thank you.</p>
 </div>"""
     lines = "\n".join(f"  {r.get('lane',''):<12} not shipped: {r.get('yellow_today',0):>4}   "
                       f"buy ship pending: {r.get('red_today',0):>4}" for r in rows)
+    nu_text = ("\n\nOrder report NOT uploaded today for: " + ", ".join(not_uploaded) + "."
+               if not_uploaded else "")
     text = ("Daily Pending Shipment Status by Lane\n\nHi Team,\n\n"
             "Please find today's pending shipment status by lane below:\n\n"
-            f"{lines}\n  {'TOTAL':<12} not shipped: {total_ns:>4}   buy ship pending: {total_bs:>4}\n\n"
+            f"{lines}\n  {'TOTAL':<12} not shipped: {total_ns:>4}   buy ship pending: {total_bs:>4}"
+            f"{nu_text}\n\n"
             "Kindly review the pending orders for your respective lanes and ensure they are processed "
             "at the earliest. If there are any blockers or delays, please inform the team immediately.\n\n"
             "Thank you.")
     subject = (f"Daily Pending Shipment Status by Lane{(' — ' + date_label) if date_label else ''}: "
                f"{total_ns} not shipped / {total_bs} buy-ship pending")
-    return _deliver(subject, text, html)
+    return _deliver(subject, text, html, recipients=recipients)
 
 
 def send_amazon_file(awb, project, file_text, filename, summary):

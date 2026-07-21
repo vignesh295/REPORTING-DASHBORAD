@@ -269,6 +269,33 @@ def buy_ship_pull_reports():
     return redirect(url_for("buy_ship_left"))
 
 
+_SUMMARY_RECIPIENTS = ["harshsinghmaurya@trishoolinhouse.com", "nikhil@trishoolinhouse.com",
+                       "vijays@trishoolinhouse.com", "shubham@trishoolinhouse.com"]
+
+
+@app.route("/buy-ship-left/send-summary", methods=["POST"])
+@auth.role_required("admin")
+def send_summary_now():
+    """Email today's Pending Shipment Status by Lane to the team recipients now."""
+    import automation
+    import emailer
+    import datetime
+    label = datetime.datetime.now(
+        datetime.timezone(datetime.timedelta(hours=5, minutes=30))).strftime("%d.%m.%Y")
+    try:
+        rows, totals = automation._lane_pending_counts()
+        status = emailer.send_daily_summary(rows, totals, label, recipients=_SUMMARY_RECIPIENTS)
+    except Exception as e:  # noqa: BLE001
+        traceback.print_exc()
+        flash(f"Send failed: {e}", "error")
+        return redirect(url_for("buy_ship_left"))
+    if status == "sent":
+        flash("Summary email sent to: " + ", ".join(_SUMMARY_RECIPIENTS) + ".", "success")
+    else:
+        flash(f"Not sent (status: {status}). Check email is enabled + Gmail creds are set.", "error")
+    return redirect(url_for("buy_ship_left"))
+
+
 @app.route("/api/shipment/notify", methods=["POST"])
 def api_shipment_notify():
     """Drive-folder Apps Script pings this with a new file's id; the app pulls

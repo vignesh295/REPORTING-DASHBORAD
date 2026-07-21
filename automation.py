@@ -85,9 +85,9 @@ def _count_blank_reason(vals):
     return n
 
 
-def _batch_blank_reason(sh, lanes):
-    """ONE batched read of all lane tabs -> {lane: blank-REASON count} (avoids a
-    read-per-tab, which trips the Sheets per-minute read quota)."""
+def _batch_counts(sh, lanes):
+    """ONE batched read of all lane tabs -> {lane: (blank-REASON count, data-row
+    count)}. Batched to avoid a read-per-tab (the Sheets per-minute read quota)."""
     ranges = [f"'{lane}'!A:Z" for lane in lanes]
     try:
         resp = sh.values_batch_get(ranges)
@@ -95,26 +95,33 @@ def _batch_blank_reason(sh, lanes):
         return {}
     out = {}
     for lane, vr in zip(lanes, resp.get("valueRanges", [])):
-        out[lane] = _count_blank_reason(vr.get("values", []))
+        vals = vr.get("values", [])
+        out[lane] = (_count_blank_reason(vals), max(0, len(vals) - 1))
     return out
 
 
 def _lane_pending_counts():
-    """Per-lane blank-REASON counts from the RED/YELLOW sheets -> rows + totals
-    shaped for emailer.send_daily_summary (yellow_today / red_today)."""
-    rows, ty, tr = [], 0, 0
+    """Per-lane blank-REASON counts from the RED/YELLOW sheets. Excludes UK-
+    destination lanes and UK -> USA. Also flags lanes with no report (empty tabs)
+    as 'not_uploaded'. Returns rows + totals for emailer.send_daily_summary."""
+    import splitter
+    lanes = [l for l in config.LANES if not splitter._skip_lane(l)]
+    rows, ty, tr, not_uploaded = [], 0, 0, []
     if not (config.has_service_account()
             and config.RED_SPREADSHEET_ID and config.YELLOW_SPREADSHEET_ID):
-        return rows, {"yellow_today": 0, "red_today": 0}
+        return rows, {"yellow_today": 0, "red_today": 0, "not_uploaded": lanes}
     import sheets
-    ycounts = _batch_blank_reason(sheets.client().open_by_key(config.YELLOW_SPREADSHEET_ID), config.LANES)
-    rcounts = _batch_blank_reason(sheets.client().open_by_key(config.RED_SPREADSHEET_ID), config.LANES)
-    for lane in config.LANES:
-        y, r = ycounts.get(lane, 0), rcounts.get(lane, 0)
-        rows.append({"lane": lane, "yellow_today": y, "red_today": r})
-        ty += y
-        tr += r
-    return rows, {"yellow_today": ty, "red_today": tr}
+    yc = _batch_counts(sheets.client().open_by_key(config.YELLOW_SPREADSHEET_ID), lanes)
+    rc = _batch_counts(sheets.client().open_by_key(config.RED_SPREADSHEET_ID), lanes)
+    for lane in lanes:
+        y_blank, y_rows = yc.get(lane, (0, 0))
+        r_blank, r_rows = rc.get(lane, (0, 0))
+        rows.append({"lane": lane, "yellow_today": y_blank, "red_today": r_blank})
+        ty += y_blank
+        tr += r_blank
+        if y_rows == 0 and r_rows == 0:      # no rows in either tab -> no report
+            not_uploaded.append(lane)
+    return rows, {"yellow_today": ty, "red_today": tr, "not_uploaded": not_uploaded}
 
 
 def daily_summary(date_label=""):
