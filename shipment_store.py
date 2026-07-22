@@ -44,6 +44,12 @@ def _load():
     return _defaults(data)
 
 
+def snapshot():
+    """The whole store as one dict (a SINGLE load) — for read-heavy callers that
+    would otherwise re-load per AWB (a killer on the network-backed store)."""
+    return _load()
+
+
 def _save(data):
     if db.enabled():
         db.kv_set(_KEY, data)

@@ -283,8 +283,11 @@ def _log_records(idx, actions=None):
     is {awb: action-cell} from the log sheet — SYSTEM UPDATE is computed only for
     AWBs whose action is 'UPDATED'. IND -> USA shipments are excluded."""
     actions = actions or {}
+    data = shipment_store.snapshot()   # one load, not get_generated() per manifest
+    manifests = data.get("manifests", {})
+    generated = data.get("generated", {})
     records = []
-    for awb, m in shipment_store.manifests().items():
+    for awb, m in manifests.items():
         rows = m.get("rows", [])
         oids = {_row_get(r, "ORDER ID", "order-id") for r in rows}
         oids.discard("")
@@ -314,7 +317,7 @@ def _log_records(idx, actions=None):
         # per ops: don't log IND -> USA shipments
         if project.upper().replace("→", "TO").replace(" ", "") in ("INDTOUSA", "INDIATOUSA"):
             continue
-        if shipment_store.get_generated(awb):
+        if awb in generated:
             update_status = "Amazon file generated"
         elif info.get("delivered"):
             update_status = "Delivered — processing"
@@ -350,15 +353,20 @@ def _update_shipment_log(report, idx):
 
 
 def _process_ready(report):
-    for awb, d in shipment_store.delivered().items():
-        if shipment_store.get_generated(awb):
+    data = shipment_store.snapshot()   # ONE load, not a DB read per delivered AWB
+    delivered = data.get("delivered", {})
+    generated = data.get("generated", {})
+    manifests = data.get("manifests", {})
+    unshipped = data.get("unshipped", {})
+    for awb, d in delivered.items():
+        if awb in generated:
             continue  # already generated + emailed
-        man = shipment_store.get_manifest(awb)
+        man = manifests.get(awb)
         if not man:
             report["waiting"].append({"awb": awb, "reason": "no shipment manifest yet"})
             continue
         dest = d.get("dest") or _dest(man.get("project", ""))
-        uns = shipment_store.get_unshipped(dest)
+        uns = unshipped.get(str(dest).strip().upper())
         if not uns:
             report["waiting"].append({"awb": awb, "reason": f"no {dest or '?'} unshipped report"})
             continue
@@ -395,7 +403,11 @@ def process_deliveries():
     except Exception as e:  # noqa: BLE001
         traceback.print_exc()
         report["errors"].append(f"awb poll: {e}")
-    _process_ready(report)
+    try:
+        _process_ready(report)
+    except Exception as e:  # noqa: BLE001
+        traceback.print_exc()
+        report["errors"].append(f"process ready: {e}")
     try:
         _update_shipment_log(report, idx)
     except Exception as e:  # noqa: BLE001
