@@ -7,11 +7,25 @@ Columns: project, awb, number of orders, awb status, last ship date,
 Upserts by AWB (case-/space-insensitive header match), so re-running updates the
 existing row in place instead of appending duplicates.
 """
+import datetime
+
 import config
 import sheets
 
 HEADERS = ["project", "AWB SHIP DATE", "awb", "number of orders", "awb status",
            "last ship date", "shipment update status", "link", "SYSTEM UPDATE"]
+
+_DATE_FMTS = ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d", "%d.%m.%Y", "%d/%m/%Y", "%d-%m-%Y")
+
+
+def _pdate(s):
+    s = str(s).strip()
+    for f in _DATE_FMTS:
+        try:
+            return datetime.datetime.strptime(s, f).date()
+        except ValueError:
+            continue
+    return None
 
 
 def _nh(h):
@@ -117,4 +131,24 @@ def upsert(records):
         ws.batch_update(updates, value_input_option="RAW")
     if appends:
         ws.append_rows(appends, value_input_option="RAW")
+    if updates or appends:
+        _sort_by_ship_date(ws)
     return len(updates), len(appends)
+
+
+def _sort_by_ship_date(ws):
+    """Reorder the data rows oldest -> newest by AWB SHIP DATE (blank dates last).
+    Rewrites the full rows, so every column — including user-edited ones — is kept."""
+    vals = ws.get_all_values()
+    if len(vals) < 3:
+        return
+    header = vals[0]
+    di = next((i for i, h in enumerate(header) if _nh(h) == "awb ship date"), None)
+    if di is None:
+        return
+    def _key(row):
+        d = _pdate(row[di]) if di < len(row) else None
+        return (d is None, d or datetime.date.max)
+    ordered = sorted(vals[1:], key=_key)
+    if ordered != vals[1:]:
+        ws.update([header] + ordered, "A1", raw=True)
