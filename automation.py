@@ -185,14 +185,16 @@ def _awb_index():
         return idx
     import sheets
     sh = sheets.client().open_by_key(config.AWB_SHEET_ID)
-    for ws in sh.worksheets():
-        title = ws.title.strip().upper()
-        if any(s in title for s in ("ADMIN", "LANE CONFIG", "SHIPPED", "FBA")):
-            continue
-        try:
-            vals = ws.get_all_values()
-        except Exception:  # noqa: BLE001
-            continue
+    try:
+        titles = [ws.title for ws in sh.worksheets()
+                  if not any(s in ws.title.strip().upper()
+                             for s in ("ADMIN", "LANE CONFIG", "SHIPPED", "FBA"))]
+        # ONE batched read of every relevant tab (a call per tab timed out on Render)
+        resp = sh.values_batch_get([f"'{t}'!A:Z" for t in titles]) if titles else {}
+    except Exception:  # noqa: BLE001
+        return idx
+    for title, vr in zip(titles, resp.get("valueRanges", [])):
+        vals = vr.get("values", [])
         if len(vals) < 2:
             continue
         H = [h.strip().upper() for h in vals[0]]
@@ -216,7 +218,7 @@ def _awb_index():
             # delivery is monotonic: never let a later non-delivered row for the
             # same AWB (e.g. a duplicate in another tab) overwrite a delivered one.
             if not (prev and prev.get("delivered") and not delivered):
-                idx[awb] = {"status": status, "tab": ws.title, "project": proj,
+                idx[awb] = {"status": status, "tab": title, "project": proj,
                             "delivered": delivered,
                             "delivered_date": dd or (prev or {}).get("delivered_date", "")}
             # aggregate the per-row tracking check across ALL rows of this AWB
